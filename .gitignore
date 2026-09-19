@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+backend/venv/
+backend/.venv/
+env/
+venv/
+
+# Build & Dist
+frontend/dist/
+frontend/dist-ssr/
+*.egg-info/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment & Local Secrets
+.env
+.env.local
+*.env
+
+# SQLite Database (optional - uncomment if db should not be tracked)
+# backend/*.db
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.log
