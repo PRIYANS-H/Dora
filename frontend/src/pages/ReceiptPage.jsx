@@ -27,9 +27,9 @@ export default function ReceiptPage({ order, onProceedToTracker }) {
       </div>
 
       {/* Royalty Split Breakdown Card */}
-      <div className="glass-card rounded-2xl p-6 border border-gray-800 space-y-6">
-        <div className="flex items-center justify-between border-b border-gray-800 pb-4">
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase font-mono">
+      <div className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-6">
+        <div className="flex items-center justify-between border-b border-white/20 pb-4">
+          <div className="flex items-center gap-2 text-xs font-bold text-white uppercase font-mono">
             <Sparkles className="w-4 h-4" />
             Decentralized Royalty Split
           </div>
@@ -40,27 +40,27 @@ export default function ReceiptPage({ order, onProceedToTracker }) {
 
         {/* Visual Split Graph */}
         <div className="space-y-3">
-          <div className="h-4 w-full bg-gray-950 rounded-full overflow-hidden flex border border-gray-800 p-0.5">
+          <div className="h-4 w-full lp-glass-input rounded-full overflow-hidden flex border border-white/20 p-0.5">
             <div className="h-full bg-emerald-400 rounded-l-full" style={{ width: '70%' }} title="Tailor 70%" />
-            <div className="h-full bg-amber-400" style={{ width: '15%' }} title="Designer 15%" />
+            <div className="h-full lp-glass-button" style={{ width: '15%' }} title="Designer 15%" />
             <div className="h-full bg-purple-500 rounded-r-full" style={{ width: '15%' }} title="Platform 15%" />
           </div>
 
           {/* Breakdown Items */}
           <div className="grid grid-cols-3 gap-3 pt-2">
-            <div className="bg-gray-950 p-4 rounded-xl border border-emerald-500/30 text-center">
+            <div className="lp-glass-input p-4 rounded-xl border border-emerald-500/30 text-center">
               <span className="text-[10px] text-gray-400 font-mono block uppercase">Master Tailor</span>
               <span className="text-lg font-bold text-emerald-400 font-mono">${receipt.tailor_amount}</span>
               <span className="text-[10px] text-emerald-500 font-mono block mt-0.5">70% Craft Pay</span>
             </div>
             
-            <div className="bg-gray-950 p-4 rounded-xl border border-amber-500/30 text-center">
+            <div className="lp-glass-input p-4 rounded-xl border border-amber-500/30 text-center">
               <span className="text-[10px] text-gray-400 font-mono block uppercase">Original Designer</span>
-              <span className="text-lg font-bold text-amber-400 font-mono">${receipt.designer_amount}</span>
+              <span className="text-lg font-bold text-white font-mono">${receipt.designer_amount}</span>
               <span className="text-[10px] text-amber-500 font-mono block mt-0.5">15% Design Royalty</span>
             </div>
 
-            <div className="bg-gray-950 p-4 rounded-xl border border-purple-500/30 text-center">
+            <div className="lp-glass-input p-4 rounded-xl border border-purple-500/30 text-center">
               <span className="text-[10px] text-gray-400 font-mono block uppercase">DORI Platform</span>
               <span className="text-lg font-bold text-purple-400 font-mono">${receipt.platform_amount}</span>
               <span className="text-[10px] text-purple-500 font-mono block mt-0.5">15% Protocol Fee</span>
@@ -68,15 +68,15 @@ export default function ReceiptPage({ order, onProceedToTracker }) {
           </div>
         </div>
 
-        <div className="bg-amber-400/10 border border-amber-400/30 p-3 rounded-xl text-xs text-amber-300 flex items-center gap-2">
-          <Heart className="w-4 h-4 text-amber-400 shrink-0" />
+        <div className="lp-glass-button/10 border border-amber-400/30 p-3 rounded-xl text-xs text-gray-300 flex items-center gap-2">
+          <Heart className="w-4 h-4 text-white shrink-0" />
           <span>Every custom remix automatically compensates the original creator, closing the loop between inspiration and production.</span>
         </div>
       </div>
 
       <button
         onClick={onProceedToTracker}
-        className="w-full py-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-gray-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 transition-all"
+        className="w-full py-4 rounded-xl lp-glass-button hover:bg-white/10  font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 transition-all"
       >
         Track Order Status Live
         <ArrowRight className="w-4 h-4" />

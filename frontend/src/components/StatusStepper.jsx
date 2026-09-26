@@ -14,7 +14,7 @@ export default function StatusStepper({ currentStatus, onAdvanceStatus, isOperat
   const activeIndex = currentIndex >= 0 ? currentIndex : 0;
 
   return (
-    <div className="bg-gray-900/60 rounded-2xl p-6 border border-gray-800 space-y-6">
+    <div className="bg-gray-900/60 rounded-2xl p-6 border border-white/20 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wider font-mono">
@@ -55,10 +55,10 @@ export default function StatusStepper({ currentStatus, onAdvanceStatus, isOperat
               <div
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 border ${
                   isCurrent
-                    ? 'bg-amber-400 text-gray-950 border-amber-300 shadow-xl shadow-amber-400/30 scale-110'
+                    ? 'lp-glass-button  border-amber-300 shadow-xl shadow-amber-400/30 scale-110'
                     : isCompleted
                     ? 'bg-purple-900/80 text-purple-300 border-purple-600'
-                    : 'bg-gray-950 text-gray-600 border-gray-800'
+                    : 'lp-glass-input text-gray-600 border-white/20'
                 }`}
               >
                 <IconComponent className="w-5 h-5 stroke-[2.2]" />
@@ -66,7 +66,7 @@ export default function StatusStepper({ currentStatus, onAdvanceStatus, isOperat
               <div className="text-center mt-3 max-w-[100px]">
                 <div
                   className={`text-xs font-semibold ${
-                    isCurrent ? 'text-amber-300' : isCompleted ? 'text-gray-200' : 'text-gray-500'
+                    isCurrent ? 'text-gray-300' : isCompleted ? 'text-gray-200' : 'text-gray-500'
                   }`}
                 >
                   {step.label}

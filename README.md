@@ -109,6 +109,23 @@ SUPABASE_KEY=your_supabase_key_here
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
+### Supabase Auth Email Delivery
+
+The frontend calls Supabase Auth for signup and verification, but verification email delivery is configured to use your own Gmail SMTP relay. Do not put SMTP credentials in the frontend or expose them through a browser request.
+
+In Supabase Dashboard, open **Authentication → SMTP Settings** and enter:
+
+```text
+SMTP host: smtp.gmail.com
+SMTP port: 587
+SMTP username: your Gmail address
+SMTP password: your Gmail app password
+Sender email: your Gmail address
+Sender name: DORI
+```
+
+Then enable **Email provider** and email confirmation under **Authentication → Providers → Email**. The `SMTP_*` values in `backend/.env` are reference values only; Supabase Dashboard is the service that uses them for Auth mail delivery.
+
 ---
 
 ## 🎬 Demo Flow

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screenshot Size Sample - 1440 x 816</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --screen-width: 1651px;
+      --screen-height: 883px;
+      --capture-width: 1553px;
+      --capture-height: 835px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      display: grid;
+      min-width: var(--screen-width);
+      min-height: var(--screen-height);
+      place-items: center;
+      overflow: auto;
+      background: #11151c;
+      color: #f4f7fb;
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    .screen {
+      position: relative;
+      width: var(--screen-width);
+      height: var(--screen-height);
+      padding: 24px 48px;
+      background:
+        radial-gradient(circle at 18% 12%, #283b54 0, transparent 34%),
+        linear-gradient(135deg, #18212d, #0c1017 72%);
+    }
+
+    .capture {
+      position: relative;
+      width: var(--capture-width);
+      height: var(--capture-height);
+      overflow: hidden;
+      border: 2px solid #8ed8ff;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.06) 25%, transparent 25%) 0 0 / 28px 28px,
+        #172331;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 20px 60px rgba(0,0,0,.4);
+    }
+
+    .capture::before,
+    .capture::after {
+      position: absolute;
+      content: "";
+      background: #8ed8ff;
+      opacity: .8;
+    }
+
+    .capture::before {
+      top: 50%;
+      right: 0;
+      left: 0;
+      height: 1px;
+    }
+
+    .capture::after {
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1px;
+    }
+
+    .label {
+      position: absolute;
+      z-index: 1;
+      top: 50%;
+      left: 50%;
+      padding: 18px 28px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: rgba(9, 15, 23, .86);
+      text-align: center;
+      transform: translate(-50%, -50%);
+    }
+
+    .label strong {
+      display: block;
+      font-size: 28px;
+      letter-spacing: .04em;
+    }
+
+    .label span {
+      display: block;
+      margin-top: 7px;
+      color: #a9bacb;
+      font-size: 14px;
+    }
+
+    .margin {
+      position: absolute;
+      color: #8ed8ff;
+      font: 12px/1.2 Consolas, monospace;
+      letter-spacing: .04em;
+    }
+
+    .margin.top,
+    .margin.bottom {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .margin.top { top: 5px; }
+    .margin.bottom { bottom: 5px; }
+    .margin.left,
+    .margin.right {
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .margin.left { left: 7px; }
+    .margin.right { right: 7px; }
+
+    .fullscreen-control {
+      position: fixed;
+      z-index: 10;
+      top: 16px;
+      right: 16px;
+      padding: 9px 14px;
+      border: 1px solid #8ed8ff;
+      border-radius: 6px;
+      background: #111c28;
+      color: #f4f7fb;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .fullscreen-control:hover,
+    .fullscreen-control:focus-visible {
+      background: #20364b;
+    }
+
+    .picker-control {
+      position: absolute;
+      z-index: 30;
+      top: 16px;
+      left: 16px;
+      padding: 9px 14px;
+      border: 1px solid #8ed8ff;
+      border-radius: 6px;
+      background: #111c28;
+      color: #f4f7fb;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .picker-control:hover,
+    .picker-control:focus-visible {
+      background: #20364b;
+    }
+
+    .picker-layer {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: none;
+      cursor: crosshair;
+    }
+
+    .picker-layer.active { display: block; }
+
+    .selection-box {
+      position: absolute;
+      border: 2px solid #ffda6b;
+      background: rgba(255, 218, 107, .16);
+      pointer-events: none;
+    }
+
+    .coordinate-readout {
+      position: fixed;
+      z-index: 31;
+      right: 16px;
+      bottom: 16px;
+      display: none;
+      padding: 10px 14px;
+      border: 1px solid #ffda6b;
+      background: rgba(17, 28, 40, .94);
+      color: #ffda6b;
+      font: 14px/1.4 Consolas, monospace;
+      white-space: pre;
+    }
+
+    .coordinate-readout.visible { display: block; }
+
+    .picker-hint {
+      position: fixed;
+      z-index: 31;
+      top: 16px;
+      left: 50%;
+      display: none;
+      padding: 9px 14px;
+      background: rgba(17, 28, 40, .94);
+      color: #f4f7fb;
+      transform: translateX(-50%);
+    }
+
+    .picker-hint.visible { display: block; }
+
+    @media (max-width: 1535px), (max-height: 863px) {
+      body {
+        place-items: start;
+      }
+
+      .screen {
+        transform-origin: top left;
+        transform: scale(min(calc(100vw / 1651), calc(100vh / 883)));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="screen" aria-label="1651 by 883 screen mockup">
+    <button class="fullscreen-control" type="button" id="fullscreen-button">Enter fullscreen</button>
+    <button class="picker-control" type="button" id="picker-button">Select area</button>
+    <div class="margin top">24 px</div>
+    <div class="margin bottom">24 px</div>
+    <div class="margin left">48 px</div>
+    <div class="margin right">48 px</div>
+    <section class="capture" aria-label="Screenshot capture area, 1553 by 835 pixels">
+      <div class="label">
+        <strong>1553 × 835 px</strong>
+        <span>Capture this framed area only</span>
+      </div>
+    </section>
+  </main>
+  <div class="picker-layer" id="picker-layer" aria-hidden="true">
+    <div class="selection-box" id="selection-box"></div>
+  </div>
+  <div class="picker-hint" id="picker-hint">Drag to select an area</div>
+  <output class="coordinate-readout" id="coordinate-readout" aria-live="polite"></output>
+  <script>
+    const fullscreenButton = document.querySelector("#fullscreen-button");
+    const pickerButton = document.querySelector("#picker-button");
+    const pickerLayer = document.querySelector("#picker-layer");
+    const pickerHint = document.querySelector("#picker-hint");
+    const selectionBox = document.querySelector("#selection-box");
+    const coordinateReadout = document.querySelector("#coordinate-readout");
+    const screen = document.querySelector(".screen");
+    let selectionStart = null;
+
+    fullscreenButton.addEventListener("click", async () => {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    });
+
+    pickerButton.addEventListener("click", () => {
+      pickerLayer.classList.add("active");
+      pickerHint.classList.add("visible");
+      pickerButton.textContent = "Cancel selection";
+    });
+
+    pickerLayer.addEventListener("pointerdown", (event) => {
+      selectionStart = { x: event.clientX, y: event.clientY };
+      selectionBox.style.left = `${event.clientX}px`;
+      selectionBox.style.top = `${event.clientY}px`;
+      selectionBox.style.width = "0px";
+      selectionBox.style.height = "0px";
+      pickerLayer.setPointerCapture(event.pointerId);
+    });
+
+    pickerLayer.addEventListener("pointermove", (event) => {
+      if (!selectionStart) return;
+      const left = Math.min(selectionStart.x, event.clientX);
+      const top = Math.min(selectionStart.y, event.clientY);
+      const width = Math.abs(event.clientX - selectionStart.x);
+      const height = Math.abs(event.clientY - selectionStart.y);
+      selectionBox.style.left = `${left}px`;
+      selectionBox.style.top = `${top}px`;
+      selectionBox.style.width = `${width}px`;
+      selectionBox.style.height = `${height}px`;
+      coordinateReadout.textContent = `x: ${left}  y: ${top}\nwidth: ${width}  height: ${height}`;
+      coordinateReadout.classList.add("visible");
+    });
+
+    pickerLayer.addEventListener("pointerup", () => {
+      selectionStart = null;
+      pickerHint.classList.remove("visible");
+      pickerLayer.classList.remove("active");
+      pickerButton.textContent = "Select area";
+    });
+
+    document.addEventListener("fullscreenchange", () => {
+      fullscreenButton.textContent = document.fullscreenElement
+        ? "Exit fullscreen"
+        : "Enter fullscreen";
+    });
+  </script>
+</body>
+</html>

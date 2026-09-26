@@ -35,8 +35,8 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-12 text-left">
       {/* Header */}
-      <div className="border-b border-gray-800 pb-4">
-        <span className="text-xs font-mono text-amber-400 uppercase tracking-widest">
+      <div className="border-b border-white/20 pb-4">
+        <span className="text-xs font-mono text-white uppercase tracking-widest">
           Step 4: Machine-Readable Order Brief
         </span>
         <h2 className="text-2xl font-bold text-gray-100 m-0 mt-1">
@@ -50,8 +50,8 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Tailor & Garment Summary Card */}
-        <div className="glass-card rounded-2xl p-6 border border-gray-800 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-800/80">
+        <div className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/20/80">
             <div className="flex items-center gap-3">
               <img
                 src={tailor.photo_url}
@@ -60,7 +60,7 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
               />
               <div>
                 <h3 className="text-sm font-bold text-gray-200 m-0">{tailor.name}</h3>
-                <span className="text-xs text-amber-400 font-mono">Matched Tailor</span>
+                <span className="text-xs text-white font-mono">Matched Tailor</span>
               </div>
             </div>
             <div className="text-right">
@@ -78,9 +78,9 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(remix.attributes || {}).map(([k, v]) => (
-                <div key={k} className="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
+                <div key={k} className="lp-glass-input p-2.5 rounded-xl border border-white/20/80">
                   <span className="text-[10px] text-gray-400 uppercase font-mono block">{k}</span>
-                  <span className="text-xs font-bold text-amber-300 capitalize font-mono">{v}</span>
+                  <span className="text-xs font-bold text-gray-300 capitalize font-mono">{v}</span>
                 </div>
               ))}
             </div>
@@ -88,9 +88,9 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
         </div>
 
         {/* 4-Field Measurement Form */}
-        <div className="glass-card rounded-2xl p-6 border border-gray-800 space-y-4">
+        <div className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-4">
           <div className="flex items-center gap-2">
-            <Ruler className="w-4 h-4 text-amber-400" />
+            <Ruler className="w-4 h-4 text-white" />
             <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider font-mono m-0">
               Anatomical Measurements Form
             </h3>
@@ -106,7 +106,7 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
                 type="text"
                 value={measurements.chest}
                 onChange={(e) => handleChange('chest', e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-amber-300 font-mono focus:border-amber-400 focus:outline-none"
+                className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-2 text-xs text-gray-300 font-mono focus:border-white focus:outline-none"
                 required
               />
             </div>
@@ -116,7 +116,7 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
                 type="text"
                 value={measurements.length}
                 onChange={(e) => handleChange('length', e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-amber-300 font-mono focus:border-amber-400 focus:outline-none"
+                className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-2 text-xs text-gray-300 font-mono focus:border-white focus:outline-none"
                 required
               />
             </div>
@@ -126,7 +126,7 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
                 type="text"
                 value={measurements.shoulder}
                 onChange={(e) => handleChange('shoulder', e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-amber-300 font-mono focus:border-amber-400 focus:outline-none"
+                className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-2 text-xs text-gray-300 font-mono focus:border-white focus:outline-none"
                 required
               />
             </div>
@@ -136,7 +136,7 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
                 type="text"
                 value={measurements.sleeve}
                 onChange={(e) => handleChange('sleeve', e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-amber-300 font-mono focus:border-amber-400 focus:outline-none"
+                className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-2 text-xs text-gray-300 font-mono focus:border-white focus:outline-none"
                 required
               />
             </div>
@@ -147,7 +147,7 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-gray-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-xl shadow-amber-400/20 hover:scale-[1.01] transition-all disabled:opacity-50"
+          className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500  font-extrabold text-sm flex items-center justify-center gap-2 shadow-xl shadow-amber-400/20 hover:scale-[1.01] transition-all disabled:opacity-50"
         >
           <Scissors className="w-4 h-4" />
           {submitting ? 'Confirming Brief...' : 'CONFIRM BRIEF & PLACE ORDER'}

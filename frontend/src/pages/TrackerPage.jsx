@@ -43,9 +43,9 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12 text-left">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+      <div className="flex items-center justify-between border-b border-white/20 pb-4">
         <div>
-          <span className="text-xs font-mono text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+          <span className="text-xs font-mono text-white uppercase tracking-widest flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
             Live Customer Order Tracker
           </span>
@@ -55,7 +55,7 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
         </div>
         <button
           onClick={loadOrder}
-          className="p-2 rounded-xl bg-gray-900 border border-gray-800 text-gray-400 hover:text-amber-400 transition-colors"
+          className="p-2 rounded-xl bg-gray-900 border border-white/20 text-gray-400 hover:text-white transition-colors"
           title="Refresh Status"
         >
           <RefreshCw className="w-4 h-4" />
@@ -68,13 +68,13 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
       {/* Garment & Tailor Card Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left: Remixed Garment Spec */}
-        <div className="glass-card rounded-2xl p-6 border border-gray-800 space-y-4">
+        <div className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-4">
           <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider font-mono m-0">
             Remixed Garment Spec
           </h3>
 
           {order.remix?.remixed_image_url && (
-            <div className="h-64 rounded-xl overflow-hidden border border-gray-800 bg-gray-950">
+            <div className="h-64 rounded-xl overflow-hidden border border-white/20 lp-glass-input">
               <img
                 src={order.remix.remixed_image_url}
                 alt="Remixed Spec"
@@ -87,7 +87,7 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
             {Object.entries(order.remix?.attributes || {}).map(([k, v]) => (
               <span
                 key={k}
-                className="px-2.5 py-1 rounded-lg bg-gray-950 border border-gray-800 text-xs font-mono text-amber-300 capitalize"
+                className="px-2.5 py-1 rounded-lg lp-glass-input border border-white/20 text-xs font-mono text-gray-300 capitalize"
               >
                 {k}: {v}
               </span>
@@ -96,12 +96,12 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
         </div>
 
         {/* Right: Tailor Workshop Info & Measurements */}
-        <div className="glass-card rounded-2xl p-6 border border-gray-800 space-y-5">
+        <div className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-5">
           <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider font-mono m-0">
             Assigned Artisan Workshop
           </h3>
 
-          <div className="flex items-center gap-3 bg-gray-950 p-4 rounded-xl border border-gray-800">
+          <div className="flex items-center gap-3 lp-glass-input p-4 rounded-xl border border-white/20">
             {order.tailor?.photo_url && (
               <img
                 src={order.tailor.photo_url}
@@ -111,7 +111,7 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
             )}
             <div>
               <h4 className="text-sm font-bold text-gray-100 m-0">{order.tailor?.name}</h4>
-              <span className="text-xs text-amber-400 font-mono">Matched Score: {order.match_score}%</span>
+              <span className="text-xs text-white font-mono">Matched Score: {order.match_score}%</span>
             </div>
           </div>
 
@@ -121,7 +121,7 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(order.measurements || {}).map(([k, v]) => (
-                <div key={k} className="bg-gray-950 p-2.5 rounded-lg border border-gray-800/80">
+                <div key={k} className="lp-glass-input p-2.5 rounded-lg border border-white/20/80">
                   <span className="text-[10px] text-gray-400 uppercase font-mono block">{k}</span>
                   <span className="text-xs font-bold text-gray-200 font-mono">{v}</span>
                 </div>
@@ -130,7 +130,7 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
           </div>
 
           {/* Quick Demo Operator Switch */}
-          <div className="pt-2 border-t border-gray-800/80">
+          <div className="pt-2 border-t border-white/20/80">
             <button
               onClick={onSwitchToTailorView}
               className="w-full py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-semibold flex items-center justify-center gap-2 transition-all"

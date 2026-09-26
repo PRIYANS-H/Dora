@@ -1,13 +1,1295 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DORI — See it. Remix it. Wear it.</title>
+<meta name="description" content="DORI connects social fashion discovery, garment design customization, and local tailor matchmaking into one seamless creation loop.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --retake-ease:cubic-bezier(0.22,1,0.36,1);
+  --retake-slow-ease:cubic-bezier(0.65,0,0.35,1);
+  --glass-x:24%;
+  --glass-y:8%;
+}
+::selection{background:rgba(255,255,255,0.2)}
+:focus-visible{outline:2px solid #fff;outline-offset:3px}
+html,body{height:100%;overflow-x:hidden}
+body{
+  font-family:'Manrope',system-ui,sans-serif;
+  color:#fff;
+  background:#000;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────── */
+.stage{
+  position:relative;
+  isolation:isolate;
+  width:100%;
+  height:100vh;
+  height:100dvh;
+  overflow:hidden;
+  background:#000;
+}
+
+/* ── Media layers ────────────────────────────────────────────────── */
+.media{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+  z-index:0;
+  pointer-events:none;
+  visibility:hidden;
+}
+.media.visible{visibility:visible}
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.hero{
+  position:absolute;
+  inset:0;
+  z-index:10;
+  pointer-events:none;
+}
+h1{
+  position:absolute;
+  top:35.9%;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(901px,calc(100vw - 48px));
+  font-size:clamp(62px,6.8vw,100px);
+  font-weight:500;
+  line-height:0.8;
+  letter-spacing:-0.04em;
+  white-space:nowrap;
+  text-shadow:0 2px 12px rgb(0 0 0 / 0.14);
+  display:flex;
+  gap:0.25em;
+}
+h1 span{
+  display:inline-block;
+  transition:opacity 900ms var(--retake-ease),
+             filter 900ms var(--retake-ease),
+             transform 900ms var(--retake-ease);
+}
+h1 span:nth-child(2){transition-delay:90ms}
+h1 span:nth-child(3){transition-delay:180ms}
+.stage.title-hidden h1 span{
+  opacity:0;
+  filter:blur(12px);
+  transform:translateY(-10px);
+}
+.hero-p{
+  position:absolute;
+  top:calc(35.9% + clamp(62px,6.8vw,100px) * 0.8 + 94px);
+  left:50%;
+  transform:translateX(-50%);
+  width:min(734px,calc(100vw - 48px));
+  font-size:clamp(14px,1.25vw,18px);
+  font-weight:400;
+  line-height:1.2;
+  letter-spacing:-0.04em;
+  text-shadow:0 1px 8px rgb(0 0 0 / 0.16);
+  text-align:center;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+header{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  z-index:30;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  padding:calc(58px + env(safe-area-inset-top)) 40px 40px;
+  text-shadow:0 1px 6px rgb(0 0 0 / 0.18);
+  pointer-events:none;
+}
+.header-left{
+  display:flex;
+  align-items:center;
+  pointer-events:auto;
+}
+.logo-link{
+  display:inline-flex;
+  align-items:center;
+  color:inherit;
+  text-decoration:none;
+}
+.logo-link svg{height:24px;width:auto}
+.meta{
+  display:flex;
+  align-items:center;
+  margin-left:clamp(48px,5vw,70px);
+  gap:clamp(28px,3vw,44px);
+  font-size:18px;
+  line-height:1.2;
+  letter-spacing:-0.04em;
+}
+.meta-badge{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:500;
+}
+.meta-badge .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(255,255,255,0.6);flex-shrink:0;
+}
+.try-now{
+  pointer-events:auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:152px;
+  height:38px;
+  border-radius:999px;
+  border:1px solid rgb(255 255 255 / 0.75);
+  background:transparent;
+  color:#fff;
+  font-family:'Manrope',system-ui,sans-serif;
+  font-size:18px;
+  font-weight:500;
+  letter-spacing:-0.02em;
+  text-decoration:none;
+  transition:color 300ms,background 300ms,border-color 300ms;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.try-now:hover,.try-now:focus-visible{
+  background:#fff;
+  color:#0b1a26;
+  border-color:#fff;
+}
+
+/* ── Controller ──────────────────────────────────────────────────── */
+.controller{
+  position:absolute;
+  top:46.78%;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(880px,calc(100vw - 48px));
+  height:72px;
+  z-index:20;
+}
+
+/* Track (rear) */
+.track{
+  position:absolute;
+  top:4px;
+  left:0;
+  width:100%;
+  height:64px;
+  border-radius:999px;
+  background:rgb(24 55 82 / 0.31);
+  border:1px solid rgb(255 255 255 / 0.2);
+  -webkit-backdrop-filter:blur(9px) saturate(126%) contrast(108%) brightness(103%);
+  backdrop-filter:blur(9px) saturate(126%) contrast(108%) brightness(103%);
+  box-shadow:
+    0 14px 38px rgb(4 24 43 / 0.16),
+    0 2px 7px rgb(4 24 43 / 0.1),
+    inset 1px 1px 0 rgb(255 255 255 / 0.48),
+    inset -1px -1px 0 rgb(21 49 73 / 0.14),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.16);
+  transition:opacity 400ms linear,left 980ms var(--retake-slow-ease),width 980ms var(--retake-slow-ease);
+}
+/* Track glass pseudo-elements */
+.track::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background:
+    radial-gradient(120% 150% at var(--glass-x,24%) var(--glass-y,8%),
+                    rgb(255 255 255 / 0.25),rgb(255 255 255 / 0) 53%),
+    linear-gradient(115deg,rgb(255 255 255 / 0.10),rgb(255 255 255 / 0) 42%);
+}
+.track::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  padding:1px;
+  background:conic-gradient(from 225deg,#7fe3ff,rgb(255 255 255 / 0.35),#ffffff,#ffd7e6,rgb(255 255 255 / 0.35),#7fe3ff);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+  opacity:0.27;
+}
+
+/* Capsule (foreground) */
+.capsule{
+  position:absolute;
+  top:-1px;
+  height:72px;
+  border-radius:999px;
+  background:rgb(246 251 255 / 0.24);
+  border:1px solid rgb(255 255 255 / 0.28);
+  -webkit-backdrop-filter:blur(13px) saturate(128%) contrast(107%) brightness(105%);
+  backdrop-filter:blur(13px) saturate(128%) contrast(107%) brightness(105%);
+  box-shadow:
+    0 11px 28px rgb(4 24 43 / 0.17),
+    0 2px 6px rgb(4 24 43 / 0.1),
+    inset 1px 1px 0 rgb(255 255 255 / 0.62),
+    inset -1px -1px 0 rgb(20 49 73 / 0.18),
+    inset 0 0 12px rgb(255 255 255 / 0.055);
+  left:var(--cap-left,-5px);
+  width:var(--cap-width,calc(20% + 5px));
+  transition:left 620ms var(--retake-ease),width 620ms var(--retake-ease),background 400ms;
+  pointer-events:none;
+}
+.capsule::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background:
+    radial-gradient(120% 150% at var(--glass-x,24%) var(--glass-y,8%),
+                    rgb(255 255 255 / 0.25),rgb(255 255 255 / 0) 53%),
+    linear-gradient(115deg,rgb(255 255 255 / 0.10),rgb(255 255 255 / 0) 42%);
+}
+.capsule::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  padding:1px;
+  background:conic-gradient(from 225deg,#7fe3ff,rgb(255 255 255 / 0.35),#ffffff,#ffd7e6,rgb(255 255 255 / 0.35),#7fe3ff);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+  opacity:0.30;
+}
+
+/* Collapsed state */
+.controller.collapsed .track{
+  left:calc(50% - 96px);
+  width:192px;
+  opacity:0;
+  transition:left 980ms var(--retake-slow-ease),
+             width 980ms var(--retake-slow-ease),
+             opacity 400ms linear 650ms;
+}
+.controller.collapsed{
+  --cap-left:calc(50% - 100px);
+  --cap-width:200px;
+}
+.controller.collapsed .capsule{
+  transition:left 980ms var(--retake-slow-ease),
+             width 980ms var(--retake-slow-ease),
+             background 400ms;
+  background:rgb(246 251 255 / 0.14);
+}
+
+/* Cells grid */
+.cells{
+  position:absolute;
+  inset:0;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  align-items:center;
+}
+.cell{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100%;
+  padding:0 14px;
+  font-size:23px;
+  font-weight:400;
+  line-height:1.2;
+  letter-spacing:-0.04em;
+  white-space:nowrap;
+  font-family:'Manrope',system-ui,sans-serif;
+  transition:opacity 420ms var(--retake-ease),
+             filter 420ms var(--retake-ease),
+             transform 980ms var(--retake-slow-ease);
+}
+.cell.label-cell{
+  opacity:1;
+  transition:opacity 300ms;
+  cursor:default;
+  user-select:none;
+}
+.cell.label-cell.dimmed{opacity:0.5}
+button.cell{
+  background:transparent;
+  border:0;
+  border-radius:999px;
+  cursor:pointer;
+  color:#fff;
+  position:relative;
+  z-index:1;
+}
+button.cell:disabled{
+  cursor:default;
+}
+button.cell.hidden-cell{
+  opacity:0;
+  filter:blur(10px);
+  transform:scale(0.94);
+  pointer-events:none;
+}
+button.cell.selected-cell{
+  text-decoration:underline;
+  text-underline-offset:3px;
+  text-decoration-thickness:1px;
+}
+.reset-label{
+  display:none;
+}
+.showing-reset .reset-label{display:inline}
+.showing-reset .option-label{display:none}
+
+/* Status / Notice */
+.status-bar{
+  position:absolute;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:40;
+  font-size:14px;
+  letter-spacing:0.02em;
+  opacity:0.75;
+  pointer-events:none;
+  white-space:nowrap;
+}
+.notice{
+  position:absolute;
+  bottom:56px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:40;
+  background:rgb(220 38 38 / 0.85);
+  color:#fff;
+  padding:8px 18px;
+  border-radius:8px;
+  font-size:14px;
+  display:none;
+  align-items:center;
+  gap:10px;
+  pointer-events:auto;
+}
+.notice.visible{display:flex}
+.retry-btn{
+  background:#fff;
+  color:rgb(220 38 38);
+  border:0;
+  border-radius:6px;
+  padding:4px 12px;
+  font-family:'Manrope',system-ui,sans-serif;
+  font-weight:600;
+  font-size:13px;
+  cursor:pointer;
+}
+
+/* Live region */
+.sr-only{
+  position:absolute;
+  width:1px;height:1px;
+  overflow:hidden;
+  clip:rect(0 0 0 0);
+  white-space:nowrap;
+}
+
+/* ── DORI app link bar (bottom) ─────────────────────────────────── */
+.dori-nav{
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+  z-index:25;
+  display:flex;
+  justify-content:center;
+  gap:0;
+  padding:0 0 env(safe-area-inset-bottom,0px);
+  pointer-events:none;
+}
+.dori-nav-inner{
+  display:flex;
+  gap:4px;
+  background:rgb(0 0 0 / 0.55);
+  border:1px solid rgb(255 255 255 / 0.12);
+  border-bottom:none;
+  border-radius:16px 16px 0 0;
+  padding:10px 18px 12px;
+  -webkit-backdrop-filter:blur(18px);
+  backdrop-filter:blur(18px);
+  pointer-events:auto;
+}
+.dori-link{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 16px;
+  border-radius:999px;
+  color:rgba(255,255,255,0.7);
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:-0.01em;
+  text-decoration:none;
+  transition:background 200ms,color 200ms;
+  cursor:pointer;
+  border:0;
+  background:transparent;
+  font-family:'Manrope',system-ui,sans-serif;
+}
+.dori-link:hover,.dori-link:focus-visible{
+  background:rgba(255,255,255,0.12);
+  color:#fff;
+}
+.dori-link svg{width:15px;height:15px;flex-shrink:0}
+
+/* ── Auth Modal ──────────────────────────────────────────────────── */
+.auth-modal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+.auth-modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.auth-modal {
+  width: 90%;
+  max-width: 400px;
+  background: rgb(24 55 82 / 0.31);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 24px;
+  padding: 32px;
+  position: relative;
+  transform: translateY(20px);
+  transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-backdrop-filter: blur(24px) saturate(126%) contrast(108%) brightness(103%);
+  backdrop-filter: blur(24px) saturate(126%) contrast(108%) brightness(103%);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.4), inset 1px 1px 0 rgba(255,255,255,0.4);
+}
+.auth-modal-overlay.active .auth-modal {
+  transform: translateY(0);
+}
+.auth-modal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(120% 150% at 24% 8%, rgba(255,255,255,0.2), transparent 53%);
+}
+.auth-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 200ms;
+  padding: 8px;
+  z-index: 2;
+}
+.auth-modal-close:hover { opacity: 1; }
+.auth-title {
+  font-size: 28px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.auth-subtitle {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  text-align: center;
+  margin-bottom: 24px;
+}
+.auth-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 200ms;
+  position: relative;
+  z-index: 1;
+}
+.auth-btn-google {
+  background: #fff;
+  color: #000;
+  border: none;
+  margin-bottom: 16px;
+}
+.auth-btn-google:hover {
+  background: #f0f0f0;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.15);
+}
+.auth-divider::before { margin-right: 12px; }
+.auth-divider::after { margin-left: 12px; }
+.auth-input {
+  width: 100%;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+.auth-input:focus {
+  outline: none;
+  border-color: rgba(255,255,255,0.5);
+  background: rgba(0,0,0,0.3);
+}
+.auth-btn-email {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.5);
+}
+.auth-btn-email:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width:900px){
+  header{padding:calc(24px + env(safe-area-inset-top)) 24px 24px}
+  .meta{font-size:14px;gap:22px;margin-left:34px}
+  .try-now{width:116px;height:36px;font-size:14px}
+  .cell{font-size:clamp(17px,2.5vw,24px)}
+}
+@media (max-width:700px){
+  header{padding-left:18px;padding-right:18px}
+  .logo-link svg{height:21px}
+  .meta{font-size:12px}
+  .meta-sub{display:none}
+  .try-now{width:92px;height:34px;font-size:13px;position:relative}
+  .try-now::after{content:'';position:absolute;inset:-6px -10px;pointer-events:none}
+  h1{top:34%;width:calc(100vw - 40px);font-size:clamp(48px,14vw,64px);line-height:.88;white-space:normal}
+  .hero-p{top:77%;width:calc(100vw - 44px);font-size:14px}
+  .controller{top:53%;width:calc(100vw - 40px);height:156px}
+  .track{top:0;height:156px;border-radius:28px}
+  .cells{
+    grid-template-columns:repeat(2,1fr);
+    grid-template-rows:48px 54px 54px;
+  }
+  .cell-label-wrap{grid-column:1/-1;border-bottom:1px solid rgb(255 255 255 / 0.12)}
+  .capsule{opacity:0;pointer-events:none}
+  .controller.collapsed .capsule,
+  .controller.selected .capsule{
+    opacity:1;
+    left:50%;
+    top:4dvh;
+    transform:translate(-50%,-50%);
+    width:196px;
+    height:64px;
+    border-radius:999px;
+    background:rgb(246 251 255 / 0.18);
+    transition:none;
+  }
+  .cell{font-size:17px}
+}
+@media (max-width:700px) and (max-height:700px){
+  .controller{top:50%}
+  .hero-p{top:calc(50% + 168px);width:calc(100vw - 32px);font-size:13px}
+}
+@media (max-height:520px) and (orientation:landscape){
+  h1{top:20%;font-size:clamp(34px,8vh,56px)}
+  .controller{top:50%}
+  .hero-p{top:auto;bottom:8px;font-size:13px}
+}
+@media (max-width:700px) and (max-height:520px) and (orientation:landscape){
+  h1{top:12%;font-size:clamp(28px,7vh,44px)}
+  .controller{top:46%;height:118px}
+  .track{height:118px}
+  .cells{grid-template-rows:36px 41px 41px}
+  .cell{font-size:15px}
+  .hero-p{bottom:6px;font-size:12px}
+}
+@media (prefers-reduced-motion:reduce){
+  .capsule,.track,.cell,h1 span,.try-now{transition-duration:1ms!important;transition-delay:0ms!important;filter:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+
+  <!-- 8 persistent video elements -->
+  <video id="v-clothing-fwd" class="media" src="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/designs/video-1.mp4"
+    muted playsinline preload="auto" aria-hidden="true"></video>
+  <video id="v-clothing-rev" class="media" src="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/designs/video-1-reverse.mp4"
+    muted playsinline preload="auto" aria-hidden="true"></video>
+  <video id="v-scene-fwd" class="media" src="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/designs/video-2.mp4"
+    muted playsinline preload="auto" aria-hidden="true"></video>
+  <video id="v-scene-rev" class="media" src="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/designs/video-2-reverse.mp4"
+    muted playsinline preload="auto" aria-hidden="true"></video>
+  <video id="v-lighting-fwd" class="media" src="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/designs/video-3.mp4"
+    muted playsinline preload="auto" aria-hidden="true"></video>
+  <video id="v-lighting-rev" class="media" src="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/designs/video-3-reverse.mp4"
+    muted playsinline preload="auto" aria-hidden="true"></video>
+  <video id="v-cast-fwd" class="media" src="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/designs/video-4.mp4"
+    muted playsinline preload="auto" aria-hidden="true"></video>
+  <video id="v-cast-rev" class="media" src="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/designs/video-4-reverse.mp4"
+    muted playsinline preload="auto" aria-hidden="true"></video>
+
+  <!-- Hero copy -->
+  <div class="hero" aria-hidden="true">
+    <h1><span>See</span> <span>it.</span> <span>Wear it.</span></h1>
+    <p class="hero-p">DORI connects social fashion discovery, garment design customization, and local tailor matchmaking into one seamless creation loop. Discover, remix, and wear it.</p>
+  </div>
+
+  <!-- Controller -->
+  <div class="controller" id="controller" role="group" aria-label="Scene state controller">
+    <div class="track glass" id="track"></div>
+    <div class="capsule glass" id="capsule"></div>
+    <div class="cells" id="cells">
+      <div class="cell label-cell cell-label-wrap" id="cell-label" aria-hidden="true">Select state →</div>
+      <button class="cell" id="btn-scene"    data-idx="1" data-scene="scene"    aria-label="Switch scene" disabled>Scene</button>
+      <button class="cell" id="btn-lighting" data-idx="2" data-scene="light"    aria-label="Switch lighting" disabled>Lighting</button>
+      <button class="cell" id="btn-clothing" data-idx="3" data-scene="colorway" aria-label="Switch clothing" disabled>Clothing</button>
+      <button class="cell" id="btn-cast"     data-idx="4" data-scene="fullLook" aria-label="Switch cast" disabled>
+        <span class="option-label">Cast</span>
+        <span class="reset-label" style="display:none">Reset</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <a href="/" class="logo-link" aria-label="DORI home">
+        <!-- DORI wordmark SVG -->
+        <svg viewBox="0 0 96 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M2 4h10c8 0 14 5.5 14 12S20 28 12 28H2V4z" fill="#fff"/>
+          <path d="M13 4h0c7 0 13 5.5 13 12S20 28 13 28" fill="none" stroke="#000" stroke-width="2"/>
+          <circle cx="44" cy="16" r="12" fill="#fff"/>
+          <circle cx="44" cy="16" r="5" fill="#000"/>
+          <rect x="60" y="4" width="4" height="24" rx="2" fill="#fff"/>
+          <path d="M64 16l12-12v24L64 16z" fill="#fff"/>
+        </svg>
+      </a>
+      <div class="meta">
+        <span class="meta-badge"><span class="dot"></span>Fashion OS v2</span>
+        <span class="meta-badge meta-sub">Discover. Remix. Wear.</span>
+      </div>
+    </div>
+    <div></div>
+    <button class="try-now" id="try-now-btn" onclick="document.getElementById('auth-modal').classList.add('active')">Try DORI</button>
+  </header>
+
+  <!-- DORI App Navigation -->
+  <nav class="dori-nav" aria-label="DORI app sections">
+    <div class="dori-nav-inner">
+      <a href="#auth-modal" onclick="document.getElementById('auth-modal').classList.add('active'); return false;" class="dori-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        Feed
+      </a>
+      <a href="#auth-modal" onclick="document.getElementById('auth-modal').classList.add('active'); return false;" class="dori-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Remix Studio
+      </a>
+      <a href="#auth-modal" onclick="document.getElementById('auth-modal').classList.add('active'); return false;" class="dori-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Tailor Match
+      </a>
+      <a href="#auth-modal" onclick="document.getElementById('auth-modal').classList.add('active'); return false;" class="dori-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        Orders
+      </a>
+    </div>
+  </nav>
+
+  <!-- Status & Error Notice -->
+  <div class="status-bar sr-only" id="status-bar" aria-live="polite" aria-atomic="true"></div>
+  <div class="notice" id="notice" role="alert">
+    <span id="notice-text">Transition failed.</span>
+    <button class="retry-btn" id="retry-btn" onclick="retryTransition()">Retry</button>
+  </div>
+
+  <!-- Auth Modal -->
+  <div class="auth-modal-overlay" id="auth-modal">
+    <div class="auth-modal">
+      <button class="auth-modal-close" onclick="document.getElementById('auth-modal').classList.remove('active')" aria-label="Close">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <div class="auth-title">Join DORI</div>
+      <div class="auth-subtitle">Discover. Remix. Wear.</div>
+      
+      <button class="auth-btn auth-btn-google" onclick="window.location.href='/app/'">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1Z"/></svg>
+        Continue with Google
+      </button>
+      
+      <div class="auth-divider">or</div>
+      
+      <input type="email" class="auth-input" placeholder="Email address" />
+      <button class="auth-btn auth-btn-email" onclick="window.location.href='/app/'">Sign in with email</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Config ──────────────────────────────────────────────────────────────
+  var CLIPS = {
+    scene:    { fwd: document.getElementById('v-scene-fwd'),    rev: document.getElementById('v-scene-rev'),    fwdDur: 2.08, revDur: 2.08, revHold: 0.18 },
+    light:    { fwd: document.getElementById('v-lighting-fwd'), rev: document.getElementById('v-lighting-rev'), fwdDur: 2.08, revDur: 2.04, revHold: 0.08 },
+    colorway: { fwd: document.getElementById('v-clothing-fwd'), rev: document.getElementById('v-clothing-rev'), fwdDur: 2.08, revDur: 2.08, revHold: 0.08 },
+    fullLook: { fwd: document.getElementById('v-cast-fwd'),     rev: document.getElementById('v-cast-rev'),     fwdDur: 3.00, revDur: 2.48, revHold: 0.08 }
+  };
+
+  var DEFAULT_HOLD = 0.08;
+  var FIRST_FRAME_TIMEOUT = 12000;
+
+  // ── State ───────────────────────────────────────────────────────────────
+  var currentScene    = 'base';     // 'base' | 'scene' | 'light' | 'colorway' | 'fullLook'
+  var playbackState   = 'ready';    // 'ready' | 'starting' | 'playing' | 'error'
+  var locked          = false;
+  var activeToken     = null;
+  var lastFailedScene = null;
+  var lastFailedDir   = null;
+  var monitorRaf      = null;
+  var monitorHandle   = null;
+
+  // ── DOM refs ────────────────────────────────────────────────────────────
+  var stage      = document.getElementById('stage');
+  var controller = document.getElementById('controller');
+  var capsule    = document.getElementById('capsule');
+  var track      = document.getElementById('track');
+  var cells      = document.getElementById('cells');
+  var cellLabel  = document.getElementById('cell-label');
+  var statusBar  = document.getElementById('status-bar');
+  var notice     = document.getElementById('notice');
+  var noticeText = document.getElementById('notice-text');
+  var buttons    = Array.from(document.querySelectorAll('button.cell'));
+
+  // Map scene→button
+  var btnMap = {};
+  buttons.forEach(function(b){ btnMap[b.dataset.scene] = b; });
+
+  // ── Capsule position table ───────────────────────────────────────────────
+  var CAP_POSITIONS = [
+    { left: '-5px',  width: 'calc(20% + 5px)' },
+    { left: '20%',   width: '20%' },
+    { left: '40%',   width: '20%' },
+    { left: '60%',   width: '20%' },
+    { left: '80%',   width: 'calc(20% + 5px)' }
+  ];
+
+  function setCapsulePos(idx) {
+    var p = CAP_POSITIONS[idx];
+    controller.style.setProperty('--cap-left', p.left);
+    controller.style.setProperty('--cap-width', p.width);
+  }
+
+  // ── Readiness tracking ─────────────────────────────────────────────────
+  var ready = {};
+  Object.keys(CLIPS).forEach(function(scene) {
+    ready[scene] = { fwd: false, rev: false };
+    ['fwd', 'rev'].forEach(function(dir) {
+      var v = CLIPS[scene][dir];
+      function checkAndSet() {
+        if (v.readyState >= 2) {
+          ready[scene][dir] = true;
+          updateButtonReadiness();
+        }
+      }
+      checkAndSet();
+      v.addEventListener('loadeddata', checkAndSet);
+      v.addEventListener('canplay', checkAndSet);
+    });
+  });
+
+  function updateButtonReadiness() {
+    buttons.forEach(function(btn) {
+      var sc = btn.dataset.scene;
+      if (ready[sc] && ready[sc].fwd && ready[sc].rev) {
+        if (!locked && currentScene === 'base') btn.disabled = false;
+      }
+    });
+  }
+
+  // ── Base frame: park video-1-fwd at frame 0 ────────────────────────────
+  var baseVideo = CLIPS.colorway.fwd;  // video-1.mp4 is colorway forward
+  baseVideo.currentTime = 0;
+
+  function showBaseFrame() {
+    // Reveal base video once first frame decoded
+    if (baseVideo.readyState >= 2) {
+      makeVisible(baseVideo);
+      return;
+    }
+    baseVideo.addEventListener('loadeddata', function onLoad() {
+      baseVideo.removeEventListener('loadeddata', onLoad);
+      makeVisible(baseVideo);
+    });
+  }
+  showBaseFrame();
+
+  function makeVisible(v) {
+    document.querySelectorAll('.media').forEach(function(m){ m.classList.remove('visible'); });
+    v.classList.add('visible');
+  }
+
+  // ── Hover / focus capsule movement ─────────────────────────────────────
+  var hoverIdx = -1;
+  var focusIdx = -1;
+
+  buttons.forEach(function(btn) {
+    var idx = parseInt(btn.dataset.idx, 10);
+
+    btn.addEventListener('mouseenter', function() {
+      if (locked) return;
+      hoverIdx = idx;
+      setCapsulePos(idx);
+      cellLabel.classList.add('dimmed');
+    });
+    btn.addEventListener('mouseleave', function() {
+      hoverIdx = -1;
+      if (focusIdx < 0) {
+        setCapsulePos(0);
+        cellLabel.classList.remove('dimmed');
+      }
+    });
+    btn.addEventListener('focus', function() {
+      if (locked) return;
+      focusIdx = idx;
+      setCapsulePos(idx);
+      cellLabel.classList.add('dimmed');
+    });
+    btn.addEventListener('blur', function() {
+      focusIdx = -1;
+      if (hoverIdx < 0) {
+        setCapsulePos(0);
+        cellLabel.classList.remove('dimmed');
+      }
+    });
+  });
+
+  // ── Pointer move → update glass highlight origin ───────────────────────
+  controller.addEventListener('pointermove', function(e) {
+    var r = controller.getBoundingClientRect();
+    var x = ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%';
+    var y = ((e.clientY - r.top)  / r.height * 100).toFixed(1) + '%';
+    controller.style.setProperty('--glass-x', x);
+    controller.style.setProperty('--glass-y', y);
+    track.style.setProperty('--glass-x', x);
+    track.style.setProperty('--glass-y', y);
+    capsule.style.setProperty('--glass-x', x);
+    capsule.style.setProperty('--glass-y', y);
+  });
+
+  // ── Click handlers ──────────────────────────────────────────────────────
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var sc = btn.dataset.scene;
+      if (locked) return;
+
+      if (currentScene === 'base') {
+        startForward(sc, btn);
+      } else if (currentScene === sc && btn.classList.contains('selected-cell')) {
+        startReverse(sc, btn);
+      }
+    });
+  });
+
+  // ── FORWARD transition ──────────────────────────────────────────────────
+  function startForward(scene, originBtn) {
+    var token = {};
+    activeToken = token;
+    locked = true;
+    playbackState = 'starting';
+
+    var hadFocus = (document.activeElement === originBtn);
+    announce('Loading ' + scene + ' view…');
+
+    // Disable all buttons immediately
+    buttons.forEach(function(b) { b.disabled = true; b.setAttribute('aria-hidden','true'); b.setAttribute('tabindex','-1'); });
+
+    var clip = CLIPS[scene];
+    var fwdVideo = clip.fwd;
+
+    // Collapse animation
+    controller.classList.add('collapsed');
+
+    // Fade out non-chosen labels
+    buttons.forEach(function(b) {
+      if (b !== originBtn) b.classList.add('hidden-cell');
+    });
+
+    // Move chosen label to capsule center via transform
+    moveLabelToCapsule(originBtn);
+
+    // Title hide at ~12% of forward progress (clamped to 0.9s)
+    var titleDelay = Math.min(clip.fwdDur * 0.12, 0.9) * 1000;
+    setTimeout(function() {
+      if (activeToken !== token) return;
+      stage.classList.add('title-hidden');
+    }, titleDelay);
+
+    // Play the forward clip
+    playClip(fwdVideo, 'forward', clip.fwdDur, DEFAULT_HOLD, token, function(err) {
+      if (activeToken !== token) return;
+      if (err) { handleError(err, scene, 'forward', originBtn, hadFocus, token); return; }
+
+      // Commit selected state
+      currentScene = scene;
+      playbackState = 'ready';
+
+      // Switch to Reset button (chosen button)
+      originBtn.classList.add('selected-cell');
+      originBtn.classList.remove('hidden-cell');
+      originBtn.disabled = false;
+      originBtn.removeAttribute('aria-hidden');
+      originBtn.removeAttribute('tabindex');
+      originBtn.setAttribute('aria-label', 'Reset — return to base');
+
+      // Show reset label with reveal animation
+      var resetSpan = originBtn.querySelector('.reset-label');
+      var optSpan   = originBtn.querySelector('.option-label');
+      if (resetSpan) {
+        if (optSpan) optSpan.style.display = 'none';
+        resetSpan.style.display = 'inline';
+        resetSpan.style.opacity = '0';
+        resetSpan.style.filter  = 'blur(10px)';
+        requestAnimationFrame(function() {
+          resetSpan.style.transition = 'opacity 520ms, filter 520ms';
+          resetSpan.style.opacity = '1';
+          resetSpan.style.filter  = 'blur(0)';
+        });
+      } else {
+        originBtn.classList.add('showing-reset');
+      }
+
+      controller.classList.add('selected');
+      announce(scene + ' selected. Press Reset to return.');
+
+      if (hadFocus) originBtn.focus({ preventScroll: true });
+      locked = false;
+    });
+  }
+
+  // ── REVERSE transition ──────────────────────────────────────────────────
+  function startReverse(scene, originBtn) {
+    var token = {};
+    activeToken = token;
+    locked = true;
+    playbackState = 'starting';
+
+    var hadFocus = (document.activeElement === originBtn);
+    announce('Resetting…');
+
+    var clip = CLIPS[scene];
+    var revVideo = clip.rev;
+
+    // Disable reset button immediately
+    originBtn.disabled = true;
+
+    // Fade Reset label out
+    var resetSpan = originBtn.querySelector('.reset-label');
+    var optSpan   = originBtn.querySelector('.option-label');
+    if (resetSpan) {
+      resetSpan.style.transition = 'opacity 300ms, filter 300ms';
+      resetSpan.style.opacity = '0';
+      resetSpan.style.filter  = 'blur(8px)';
+    }
+
+    // Expand bar (parallel with reverse clip)
+    controller.classList.remove('collapsed');
+    controller.classList.remove('selected');
+
+    // Restore option labels after 60ms delay, kept disabled until reverse completes
+    setTimeout(function() {
+      if (activeToken !== token) return;
+      buttons.forEach(function(b) {
+        if (b !== originBtn) {
+          b.classList.remove('hidden-cell');
+          b.style.transition = 'opacity 760ms var(--retake-ease), filter 760ms var(--retake-ease), transform 980ms var(--retake-slow-ease)';
+        }
+      });
+    }, 60);
+
+    // Play reverse clip
+    playClip(revVideo, 'reverse', clip.revDur, clip.revHold, token, function(err) {
+      if (activeToken !== token) return;
+      if (err) { handleError(err, scene, 'reverse', originBtn, hadFocus, token); return; }
+
+      // Commit base state
+      currentScene = 'base';
+      playbackState = 'ready';
+
+      // Switch from reset to base frame (video-1 at frame 0)
+      makeVisible(baseVideo);
+
+      // Reveal title
+      stage.classList.remove('title-hidden');
+
+      // Restore Reset button to option label
+      originBtn.classList.remove('selected-cell');
+      if (resetSpan) {
+        resetSpan.style.display = 'none';
+        if (optSpan) optSpan.style.display = '';
+      } else {
+        originBtn.classList.remove('showing-reset');
+      }
+      originBtn.setAttribute('aria-label', 'Switch ' + scene);
+
+      // Re-enable all ready buttons
+      buttons.forEach(function(b) {
+        b.removeAttribute('aria-hidden');
+        b.removeAttribute('tabindex');
+        var sc = b.dataset.scene;
+        if (ready[sc] && ready[sc].fwd && ready[sc].rev) b.disabled = false;
+      });
+
+      // Restore capsule to index 0
+      setCapsulePos(0);
+      cellLabel.classList.remove('dimmed');
+
+      announce('Returned to base.');
+      if (hadFocus) originBtn.focus({ preventScroll: true });
+      locked = false;
+    });
+  }
+
+  // ── Core clip player ───────────────────────────────────────────────────
+  function playClip(video, direction, duration, holdGuard, token, callback) {
+    // Cancel any existing monitor
+    cancelMonitor();
+
+    // Rewind if needed
+    function startAfterRewind() {
+      if (activeToken !== token) return;
+      playbackState = 'playing';
+
+      var revealed = false;
+      var deadlineMs = FIRST_FRAME_TIMEOUT;
+      var deadlineTimer = null;
+      var hidden = false;
+
+      function revealAndPlay() {
+        if (revealed || activeToken !== token) return;
+        revealed = true;
+        clearTimeout(deadlineTimer);
+        makeVisible(video);
+        startMonitor(video, duration, holdGuard, token, callback);
+      }
+
+      function startDeadline() {
+        deadlineTimer = setTimeout(function() {
+          if (revealed || activeToken !== token) return;
+          callback(new Error('First frame timeout'));
+        }, deadlineMs);
+      }
+
+      // Pause deadline while tab hidden
+      document.addEventListener('visibilitychange', function onVis() {
+        if (activeToken !== token) { document.removeEventListener('visibilitychange', onVis); return; }
+        if (document.hidden) {
+          hidden = true;
+          clearTimeout(deadlineTimer);
+          video.pause();
+          video.currentTime = 0;
+        } else {
+          hidden = false;
+          startDeadline();
+          video.play()['catch'](function(){});
+        }
+      });
+
+      // First-frame detection
+      var frameDetected = false;
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        var rVfcId = null;
+        function checkFrame(now, meta) {
+          if (activeToken !== token) return;
+          if (!frameDetected && meta.mediaTime <= 0.5 && video.readyState >= 2) {
+            frameDetected = true;
+            revealAndPlay();
+            return;
+          }
+          if (!frameDetected) {
+            rVfcId = video.requestVideoFrameCallback(checkFrame);
+          }
+        }
+        rVfcId = video.requestVideoFrameCallback(checkFrame);
+      }
+
+      // Fallback: playing + double-rAF
+      var playPromise = video.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(function() {
+          if (activeToken !== token) return;
+          if (!frameDetected) {
+            requestAnimationFrame(function() {
+              requestAnimationFrame(function() {
+                if (activeToken !== token) return;
+                if (!revealed && video.readyState >= 2) revealAndPlay();
+              });
+            });
+          }
+        })['catch'](function(e) {
+          clearTimeout(deadlineTimer);
+          callback(e);
+        });
+      }
+
+      startDeadline();
+    }
+
+    if (video.currentTime > 0.001) {
+      video.currentTime = 0;
+      video.addEventListener('seeked', function onSeeked() {
+        video.removeEventListener('seeked', onSeeked);
+        startAfterRewind();
+      });
+    } else {
+      startAfterRewind();
+    }
+  }
+
+  // ── Progress monitor ───────────────────────────────────────────────────
+  function startMonitor(video, duration, holdGuard, token, callback) {
+    var committed = false;
+
+    function tick() {
+      if (activeToken !== token || committed) return;
+      var ct = video.currentTime;
+      if (ct >= duration - holdGuard) {
+        committed = true;
+        video.pause();
+        cancelMonitor();
+        callback(null);
+        return;
+      }
+      monitorRaf = requestAnimationFrame(tick);
+    }
+
+    // Fallback ended listener
+    function onEnded() {
+      if (activeToken !== token || committed) return;
+      committed = true;
+      cancelMonitor();
+      callback(null);
+    }
+    video.addEventListener('ended', onEnded);
+    monitorHandle = { video: video, fn: onEnded };
+
+    monitorRaf = requestAnimationFrame(tick);
+  }
+
+  function cancelMonitor() {
+    if (monitorRaf) { cancelAnimationFrame(monitorRaf); monitorRaf = null; }
+    if (monitorHandle) {
+      monitorHandle.video.removeEventListener('ended', monitorHandle.fn);
+      monitorHandle = null;
+    }
+  }
+
+  // ── Label-to-capsule travel ────────────────────────────────────────────
+  function moveLabelToCapsule(btn) {
+    // The capsule collapses to center; animate the label toward it
+    // We do this by watching the CSS transition — label stays in place (grid centers it),
+    // collapse handles the visual centering through the capsule overlay.
+    // No manual translate needed; the collapsed controller visually merges them.
+  }
+
+  // ── Error handling ─────────────────────────────────────────────────────
+  function handleError(err, scene, direction, originBtn, hadFocus, token) {
+    if (activeToken !== token) return;
+    playbackState = 'error';
+    locked = false;
+    lastFailedScene = scene;
+    lastFailedDir = direction;
+
+    // Restore UI to a safe state (last valid frame stays)
+    controller.classList.remove('collapsed','selected');
+    stage.classList.remove('title-hidden');
+    buttons.forEach(function(b) {
+      b.classList.remove('hidden-cell','selected-cell');
+      b.removeAttribute('aria-hidden');
+      b.removeAttribute('tabindex');
+      var sc = b.dataset.scene;
+      if (ready[sc] && ready[sc].fwd && ready[sc].rev) b.disabled = false;
+    });
+    var resetSpan = originBtn.querySelector('.reset-label');
+    var optSpan   = originBtn.querySelector('.option-label');
+    if (resetSpan) { resetSpan.style.display='none'; if(optSpan) optSpan.style.display=''; }
+    setCapsulePos(0);
+    currentScene = 'base';
+
+    noticeText.textContent = 'Transition failed: ' + (err && err.message ? err.message : 'Unknown error');
+    notice.classList.add('visible');
+    announce('Transition failed. Press Retry to try again.');
+    if (hadFocus && originBtn) originBtn.focus({ preventScroll: true });
+  }
+
+  window.retryTransition = function() {
+    notice.classList.remove('visible');
+    if (lastFailedScene) {
+      var btn = btnMap[lastFailedScene];
+      if (btn) startForward(lastFailedScene, btn);
+    }
+  };
+
+  // ── Announce helper ────────────────────────────────────────────────────
+  function announce(msg) {
+    statusBar.textContent = '';
+    requestAnimationFrame(function() { statusBar.textContent = msg; });
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────
+  setCapsulePos(0);
+  announce('Ready. Choose a scene state.');
+
+})();
+</script>
+</body>
 </html>
