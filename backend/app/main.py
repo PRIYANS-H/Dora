@@ -281,7 +281,7 @@ def threed_status():
         from gradio_client import Client
         load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"), override=True)
         hf_token = os.getenv("HF_TOKEN") or None
-        client = Client("trellis-community/TRELLIS", token=hf_token)
+        client = Client("trellis-community/TRELLIS", token=hf_token, httpx_kwargs={"timeout": 60.0})
         return {"status": "reachable", "space": "trellis-community/TRELLIS", "hf_token_set": bool(hf_token)}
     except Exception as e:
         return {"status": "unreachable", "error": str(e), "space": "trellis-community/TRELLIS"}
@@ -336,12 +336,12 @@ async def generate_3d(payload: schemas.ThreeDRequest):
             raise HTTPException(status_code=500, detail="gradio_client not installed. Run: pip install gradio_client")
 
         print(f"[TRELLIS] Connecting to space (token={'set' if hf_token else 'none'})…")
-        client = Client("trellis-community/TRELLIS", token=hf_token)
+        client = Client("trellis-community/TRELLIS", token=hf_token, httpx_kwargs={"timeout": 300.0})
 
         # Step 1: Start session
         print("[TRELLIS] Starting session…")
-        session_result = client.predict(api_name="/start_session")
-        print(f"[TRELLIS] Session started: {session_result}")
+        client.predict(api_name="/start_session")
+        print("[TRELLIS] Session started")
 
         # Step 2: Preprocess image (background removal)
         print("[TRELLIS] Preprocessing image (background removal)…")
@@ -349,12 +349,19 @@ async def generate_3d(payload: schemas.ThreeDRequest):
             image=handle_file(img_path),
             api_name="/preprocess_image"
         )
-        print(f"[TRELLIS] Preprocessed: {preprocess_result}")
-        preprocessed_path = preprocess_result if isinstance(preprocess_result, str) else str(preprocess_result)
+        print(f"[TRELLIS] Preprocessed result: {preprocess_result}")
+
+        if isinstance(preprocess_result, dict):
+            p = preprocess_result.get("path") or preprocess_result.get("url") or str(preprocess_result)
+            preprocessed_image_arg = handle_file(p)
+        else:
+            preprocessed_image_arg = handle_file(str(preprocess_result))
 
         # Step 3: Generate 3D model
-        print("[TRELLIS] Generating 3D GLB (this takes 30–60s)…")
+        # Returns: (video_dict, glb_filepath, download_glb_filepath)
+        print("[TRELLIS] Generating 3D GLB (this takes 30-60s)…")
         gen_result = client.predict(
+            image=preprocessed_image_arg,
             multiimages=[],
             seed=0,
             ss_guidance_strength=7.5,
@@ -366,20 +373,30 @@ async def generate_3d(payload: schemas.ThreeDRequest):
             texture_size=1024,
             api_name="/generate_and_extract_glb"
         )
-        print(f"[TRELLIS] Generation result: {gen_result}")
+        print(f"[TRELLIS] Raw generation result: {gen_result}")
 
-        # Result is a tuple: (state_dict, video_path, glb_path, glb_path)
+        # Extract GLB filepath: result = (video_dict, glb_path, download_glb_path)
         glb_source = None
         if isinstance(gen_result, (list, tuple)):
-            for item in gen_result:
-                if isinstance(item, str) and item.endswith(".glb"):
-                    glb_source = item
+            for idx in [2, 1, 0]:
+                if idx >= len(gen_result):
+                    continue
+                candidate = gen_result[idx]
+                if isinstance(candidate, str) and candidate.endswith(".glb") and os.path.exists(candidate):
+                    glb_source = candidate
                     break
-        elif isinstance(gen_result, str) and gen_result.endswith(".glb"):
+                elif isinstance(candidate, dict):
+                    p = candidate.get("path") or candidate.get("url", "")
+                    if p and str(p).endswith(".glb") and os.path.exists(str(p)):
+                        glb_source = str(p)
+                        break
+        elif isinstance(gen_result, str) and gen_result.endswith(".glb") and os.path.exists(gen_result):
             glb_source = gen_result
 
-        if not glb_source or not os.path.exists(glb_source):
-            print(f"[TRELLIS] Could not locate GLB in result: {gen_result}")
+        print(f"[TRELLIS] GLB source resolved: {glb_source}")
+
+        if not glb_source:
+            print(f"[TRELLIS] No valid GLB found in: {gen_result}")
             return schemas.ThreeDResponse(
                 glb_url=DEMO_GLB_URL,
                 engine="trellis",
@@ -392,7 +409,7 @@ async def generate_3d(payload: schemas.ThreeDRequest):
         dest_path = os.path.join(MODELS_DIR, f"{model_id}.glb")
         shutil.copy2(glb_source, dest_path)
         glb_url = f"/static/models/{model_id}.glb"
-        print(f"[TRELLIS] Saved GLB → {dest_path}")
+        print(f"[TRELLIS] Saved GLB -> {dest_path}")
 
         return schemas.ThreeDResponse(
             glb_url=glb_url,
