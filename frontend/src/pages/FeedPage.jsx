@@ -39,9 +39,9 @@ export default function FeedPage({ onSelectPost }) {
   return (
     <div className="space-y-6 pb-12">
       {/* Hero Banner */}
-      <div className="relative rounded-3xl p-8 overflow-hidden bg-gradient-to-r from-gray-900 via-gray-950 to-purple-950 border border-gray-800 shadow-2xl">
+      <div className="relative rounded-3xl p-8 overflow-hidden bg-gradient-to-r from-gray-900 via-gray-950 to-purple-950 border border-white/20 shadow-2xl">
         <div className="relative z-10 max-w-2xl space-y-3 text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full lp-glass-button/10 border border-amber-400/30 text-gray-300 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Remixable Couture Network</span>
           </div>
@@ -66,7 +66,7 @@ export default function FeedPage({ onSelectPost }) {
             placeholder="Search designs or designers..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-900/80 border border-gray-800 rounded-xl pl-9 pr-4 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-amber-400 transition-colors"
+            className="w-full bg-gray-900/80 border border-white/20 rounded-xl pl-9 pr-4 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-white transition-colors"
           />
         </div>
 
@@ -77,8 +77,8 @@ export default function FeedPage({ onSelectPost }) {
               onClick={() => setSelectedFilter(f)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all ${
                 selectedFilter === f
-                  ? 'bg-amber-400 text-gray-950 font-bold shadow-md shadow-amber-400/20'
-                  : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
+                  ? 'lp-glass-button  font-bold shadow-md shadow-amber-400/20'
+                  : 'bg-gray-900 text-gray-400 hover:text-white border border-white/20'
               }`}
             >
               {f === 'all' ? 'All Fabrics' : f}
@@ -93,20 +93,20 @@ export default function FeedPage({ onSelectPost }) {
           <div
             key={post.id}
             onClick={() => onSelectPost(post)}
-            className="group glass-card rounded-2xl overflow-hidden border border-gray-800/80 cursor-pointer glass-card-hover flex flex-col justify-between"
+            className="group lp-glass-panel rounded-2xl overflow-hidden border border-white/20/80 cursor-pointer lp-glass-panel-hover flex flex-col justify-between"
           >
             <div>
               {/* Image Container */}
-              <div className="relative h-72 w-full overflow-hidden bg-gray-950">
+              <div className="relative h-72 w-full overflow-hidden lp-glass-input">
                 <img
                   src={post.image_url}
                   alt={post.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute top-3 left-3 bg-gray-950/80 backdrop-blur px-3 py-1 rounded-full border border-gray-800 text-[11px] font-semibold text-gray-200">
+                <div className="absolute top-3 left-3 lp-glass-input/80 backdrop-blur px-3 py-1 rounded-full border border-white/20 text-[11px] font-semibold text-gray-200">
                   {post.designer_name}
                 </div>
-                <div className="absolute top-3 right-3 bg-gray-950/80 backdrop-blur p-2 rounded-full border border-gray-800 text-gray-400 hover:text-rose-400 transition-colors">
+                <div className="absolute top-3 right-3 lp-glass-input/80 backdrop-blur p-2 rounded-full border border-white/20 text-gray-400 hover:text-rose-400 transition-colors">
                   <Heart className="w-3.5 h-3.5" />
                 </div>
               </div>
@@ -114,10 +114,10 @@ export default function FeedPage({ onSelectPost }) {
               {/* Card Body */}
               <div className="p-5 text-left space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-base font-bold text-gray-100 group-hover:text-amber-300 transition-colors m-0">
+                  <h3 className="text-base font-bold text-gray-100 group-hover:text-gray-300 transition-colors m-0">
                     {post.title}
                   </h3>
-                  <span className="text-xs font-mono font-semibold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30">
+                  <span className="text-xs font-mono font-semibold text-white lp-glass-button/10 px-2 py-0.5 rounded border border-amber-400/30">
                     ${post.price_reference}
                   </span>
                 </div>
@@ -130,7 +130,7 @@ export default function FeedPage({ onSelectPost }) {
                   {Object.entries(post.base_attributes || {}).slice(0, 4).map(([k, v]) => (
                     <span
                       key={k}
-                      className="px-2 py-0.5 rounded-md bg-gray-900 border border-gray-800 text-[10px] text-gray-300 font-mono capitalize"
+                      className="px-2 py-0.5 rounded-md bg-gray-900 border border-white/20 text-[10px] text-gray-300 font-mono capitalize"
                     >
                       {k}: {v}
                     </span>
@@ -143,7 +143,7 @@ export default function FeedPage({ onSelectPost }) {
             <div className="p-5 pt-0 text-left">
               <button
                 onClick={(e) => { e.stopPropagation(); onSelectPost(post); }}
-                className="w-full py-2.5 rounded-xl bg-gray-900 group-hover:bg-amber-400 text-gray-300 group-hover:text-gray-950 text-xs font-bold flex items-center justify-center gap-2 border border-gray-800 group-hover:border-amber-400 transition-all"
+                className="w-full py-2.5 rounded-xl bg-gray-900 group-hover:lp-glass-button text-gray-300 group-hover: text-xs font-bold flex items-center justify-center gap-2 border border-white/20 group-hover:border-white transition-all"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 Remix This Design

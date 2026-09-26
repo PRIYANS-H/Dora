@@ -73,7 +73,7 @@ export default function TailorPage() {
       </div>
 
       {orders.length === 0 ? (
-        <div className="p-12 text-center text-gray-400 font-mono text-xs glass-card rounded-2xl border border-gray-800">
+        <div className="p-12 text-center text-gray-400 font-mono text-xs lp-glass-panel rounded-2xl border border-white/20">
           No orders received yet. Place an order from the Customer Flow first.
         </div>
       ) : (
@@ -85,9 +85,9 @@ export default function TailorPage() {
             return (
               <div
                 key={order.id}
-                className="glass-card rounded-2xl p-6 border border-gray-800 space-y-5"
+                className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-5"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-800 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/20 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-base font-bold text-gray-100 m-0">
@@ -121,12 +121,12 @@ export default function TailorPage() {
                 />
 
                 {/* Brief Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-950 p-4 rounded-xl border border-gray-800 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lp-glass-input p-4 rounded-xl border border-white/20 text-xs">
                   <div>
                     <span className="text-[10px] text-gray-400 font-mono uppercase block mb-1">Garment Specifications</span>
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(order.remix?.attributes || {}).map(([k, v]) => (
-                        <span key={k} className="px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-amber-300 font-mono">
+                        <span key={k} className="px-2 py-0.5 rounded bg-gray-900 border border-white/20 text-gray-300 font-mono">
                           {k}: {v}
                         </span>
                       ))}
@@ -137,7 +137,7 @@ export default function TailorPage() {
                     <div className="flex flex-wrap gap-2 font-mono text-gray-200">
                       {Object.entries(order.measurements || {}).map(([k, v]) => (
                         <span key={k} className="text-gray-300">
-                          {k}: <strong className="text-amber-400">{v}</strong>
+                          {k}: <strong className="text-white">{v}</strong>
                         </span>
                       ))}
                     </div>

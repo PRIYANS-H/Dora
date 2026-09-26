@@ -31,9 +31,9 @@ export default function MatchPage({ remix, attributes, onSelectTailor }) {
   return (
     <div className="space-y-6 pb-12 text-left">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/20 pb-4">
         <div>
-          <span className="text-xs font-mono text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+          <span className="text-xs font-mono text-white uppercase tracking-widest flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4" />
             AI Tailor Matching Engine
           </span>
@@ -51,12 +51,12 @@ export default function MatchPage({ remix, attributes, onSelectTailor }) {
         {tailors.map((tailor, idx) => (
           <div
             key={tailor.id}
-            className={`glass-card rounded-2xl p-6 border flex flex-col justify-between transition-all relative overflow-hidden ${
-              idx === 0 ? 'border-amber-400/50 glow-gold bg-gray-900/80' : 'border-gray-800'
+            className={`lp-glass-panel rounded-2xl p-6 border flex flex-col justify-between transition-all relative overflow-hidden ${
+              idx === 0 ? 'border-amber-400/50 glow-gold bg-gray-900/80' : 'border-white/20'
             }`}
           >
             {idx === 0 && (
-              <div className="absolute top-0 right-0 bg-amber-400 text-gray-950 text-[10px] font-extrabold font-mono px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1">
+              <div className="absolute top-0 right-0 lp-glass-button  text-[10px] font-extrabold font-mono px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1">
                 <Award className="w-3 h-3" />
                 #1 Best Match
               </div>
@@ -68,14 +68,14 @@ export default function MatchPage({ remix, attributes, onSelectTailor }) {
                 <img
                   src={tailor.photo_url}
                   alt={tailor.name}
-                  className="w-14 h-14 rounded-2xl object-cover border-2 border-gray-800 shadow-md"
+                  className="w-14 h-14 rounded-2xl object-cover border-2 border-white/20 shadow-md"
                 />
                 <div>
                   <h3 className="text-base font-bold text-gray-100 m-0">
                     {tailor.name}
                   </h3>
                   <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
-                    <span className="flex items-center gap-1 text-amber-400 font-bold">
+                    <span className="flex items-center gap-1 text-white font-bold">
                       <Star className="w-3.5 h-3.5 fill-amber-400 stroke-none" />
                       {tailor.rating}
                     </span>
@@ -88,9 +88,9 @@ export default function MatchPage({ remix, attributes, onSelectTailor }) {
               </div>
 
               {/* Overall Match Score Banner */}
-              <div className="bg-gray-950 rounded-xl p-3 border border-gray-800/80 flex items-center justify-between">
+              <div className="lp-glass-input rounded-xl p-3 border border-white/20/80 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-300">Overall Match Score</span>
-                <span className="text-xl font-extrabold font-mono text-amber-400">
+                <span className="text-xl font-extrabold font-mono text-white">
                   {tailor.match_score}%
                 </span>
               </div>
@@ -107,7 +107,7 @@ export default function MatchPage({ remix, attributes, onSelectTailor }) {
                   {tailor.skills.map((skill) => (
                     <span
                       key={skill}
-                      className="px-2 py-0.5 rounded-md bg-gray-900 border border-gray-800 text-[10px] text-gray-300 font-mono capitalize"
+                      className="px-2 py-0.5 rounded-md bg-gray-900 border border-white/20 text-[10px] text-gray-300 font-mono capitalize"
                     >
                       {skill}
                     </span>
@@ -122,7 +122,7 @@ export default function MatchPage({ remix, attributes, onSelectTailor }) {
                 onClick={() => onSelectTailor(tailor)}
                 className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                   idx === 0
-                    ? 'bg-amber-400 text-gray-950 hover:bg-amber-300 shadow-lg shadow-amber-400/20'
+                    ? 'lp-glass-button  hover:bg-white/10 shadow-lg shadow-amber-400/20'
                     : 'bg-gray-900 text-gray-200 hover:bg-gray-800 border border-gray-700'
                 }`}
               >

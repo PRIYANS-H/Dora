@@ -29,5 +29,11 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
-*.swp
 *.log
+
+# Migration Scripts (contain sensitive DB info or keys)
+backend/create_tables.py
+backend/setup_db.py
+backend/run_migration.py
+backend/migrate_*.py
+backend/test_jwt.py

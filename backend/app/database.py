@@ -1,22 +1,19 @@
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.models import Base
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dora.db")
+load_dotenv()
 
-# SQLite specific connect args
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in .env")
 
-def init_db():
-    Base.metadata.create_all(bind=engine)
+_client: Client = None
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def get_supabase() -> Client:
+    global _client
+    if _client is None:
+        _client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return _client

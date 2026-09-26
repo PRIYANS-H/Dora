@@ -1,39 +1,46 @@
-import sys
+"""
+DORI — Supabase Seed Script
+Run: python -m app.seed   (from the backend/ directory)
+"""
 import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import sys
+from dotenv import load_dotenv
 
-from app.database import SessionLocal, init_db
-from app.models import Post, Tailor, Remix, Order
+load_dotenv()
+
+from app.database import get_supabase
 from app.seed_data import POSTS_SEED, TAILORS_SEED
 
+
 def seed_database():
-    print("[Seed] Initializing database tables...")
-    init_db()
-    db = SessionLocal()
+    sb = get_supabase()
 
-    try:
-        # Clear existing seed items if needed
-        db.query(Post).delete()
-        db.query(Tailor).delete()
-        db.commit()
+    # ── Posts ──────────────────────────────────────────────────────────────
+    existing_posts = sb.table("posts").select("id").execute()
+    existing_post_ids = {r["id"] for r in (existing_posts.data or [])}
 
-        # Seed Posts
-        for p_data in POSTS_SEED:
-            post = Post(**p_data)
-            db.add(post)
+    posts_to_insert = [p for p in POSTS_SEED if p["id"] not in existing_post_ids]
+    if posts_to_insert:
+        sb.table("posts").insert(posts_to_insert).execute()
+        print(f"  Seeded {len(posts_to_insert)} posts.")
+    else:
+        print("  Posts already seeded — skipping.")
 
-        # Seed Tailors
-        for t_data in TAILORS_SEED:
-            tailor = Tailor(**t_data)
-            db.add(tailor)
+    # ── Tailors ────────────────────────────────────────────────────────────
+    existing_tailors = sb.table("tailors").select("id").execute()
+    existing_tailor_ids = {r["id"] for r in (existing_tailors.data or [])}
 
-        db.commit()
-        print(f"[Seed] Successfully seeded {len(POSTS_SEED)} posts and {len(TAILORS_SEED)} tailor profiles!")
-    except Exception as e:
-        db.rollback()
-        print(f"[Seed] Error seeding database: {e}")
-    finally:
-        db.close()
+    tailors_to_insert = [t for t in TAILORS_SEED if t["id"] not in existing_tailor_ids]
+    if tailors_to_insert:
+        sb.table("tailors").insert(tailors_to_insert).execute()
+        print(f"  Seeded {len(tailors_to_insert)} tailors.")
+    else:
+        print("  Tailors already seeded — skipping.")
+
+    print("  Database seeding complete.")
+
 
 if __name__ == "__main__":
+    print("Seeding Supabase database...")
     seed_database()
+    print("Done.")
