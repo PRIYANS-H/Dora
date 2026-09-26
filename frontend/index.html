@@ -652,6 +652,57 @@ button.cell.selected-cell{
 @media (prefers-reduced-motion:reduce){
   .capsule,.track,.cell,h1 span,.try-now{transition-duration:1ms!important;transition-delay:0ms!important;filter:none!important}
 }
+
+.slide-content {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 180px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  transform: translateY(20px);
+  overflow-y: auto;
+}
+.slide-content.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.controller.selected {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease;
+}
+.slide-body {
+  max-width: 1000px;
+  width: 90%;
+  text-align: center;
+  padding: 2rem;
+  background: rgba(0,0,0,0.5);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.flow-diagram { display: flex; flex-direction: column; gap: 0.5rem; align-items: center; margin-top: 2rem; }
+.card-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: stretch; justify-content: center; margin-top: 2rem; }
+.v-card { background: rgba(0,0,0,0.4); padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); text-align: center; flex: 1; min-width: 140px; }
+.flow-arrow { font-size: 1.5rem; color: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; }
+
+@media (max-width: 768px) {
+  .slide-content { top: 70px; height: calc(100% - 150px); }
+  .slide-body { padding: 1rem; }
+  .card-row { flex-direction: column; }
+  .v-card { min-width: 100%; }
+}
+
 </style>
 </head>
 <body>
@@ -682,17 +733,163 @@ button.cell.selected-cell{
     <p class="hero-p">DORI connects social fashion discovery, garment design customization, and local tailor matchmaking into one seamless creation loop. Discover, remix, and wear it.</p>
   </div>
 
+  <!-- Slide 1: The Problem -->
+  <div id="slide-scene" class="slide-content">
+    <div class="slide-body">
+      <h2 style="font-size: clamp(20px, 3vw, 32px); font-weight: 700; margin-bottom: 1rem;">01 &mdash; THE PROBLEM</h2>
+      <p style="font-size: 1.2rem; opacity: 0.9;">You see it. You save it.<br/>But how do you actually make it?</p>
+      
+      <div class="flow-diagram" style="flex-direction:row; flex-wrap:wrap;">
+        <div class="v-card" style="padding:0.8rem;">Instagram / Pinterest post</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card" style="padding:0.8rem;">Screenshot</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card" style="padding:0.8rem;">"Can you make this?"</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card" style="padding:0.8rem; border-color:#ef4444;">Wrong/unclear communication</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card" style="padding:0.8rem;">Tailor</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card" style="padding:0.8rem; border-color:#ef4444;">Final outfit doesn't match</div>
+      </div>
+
+      <div class="card-row">
+        <div class="v-card"><strong>CUSTOMER</strong><br/><small style="opacity:0.7">Can't communicate the design</small></div>
+        <div class="v-card"><strong>DESIGNER</strong><br/><small style="opacity:0.7">No path from design &rarr; income</small></div>
+        <div class="v-card"><strong>TAILOR</strong><br/><small style="opacity:0.7">Hard to find the right customer</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 2: The Product -->
+  <div id="slide-light" class="slide-content">
+    <div class="slide-body">
+      <h2 style="font-size: clamp(20px, 3vw, 32px); font-weight: 700; margin-bottom: 0.5rem;">02 &mdash; DORI: THE PRODUCT</h2>
+      <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">See it. Remix it. Wear it.</h3>
+      
+      <div class="card-row" style="margin-top:1rem;">
+        <div class="v-card"><strong>DISCOVER</strong><br/><small>Fashion feed</small></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card"><strong>REMIX</strong><br/><small>Change features</small></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card"><strong>VISUALIZE</strong><br/><small>3D outfit</small></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card"><strong>MATCH</strong><br/><small>Local tailor</small></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card"><strong>ORDER</strong><br/><small>Quote &amp; order</small></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="v-card"><strong>WEAR</strong><br/><small>Finished garment</small></div>
+      </div>
+
+      <div class="card-row" style="margin-top:2rem;">
+        <div class="v-card" style="cursor:pointer; border-color:#60a5fa;"><strong>CUSTOMER</strong></div>
+        <div class="v-card" style="cursor:pointer; border-color:#c084fc;"><strong>DESIGNER</strong></div>
+        <div class="v-card" style="cursor:pointer; border-color:#34d399;"><strong>TAILOR</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 3: Ecosystem -->
+  <div id="slide-colorway" class="slide-content">
+    <div class="slide-body">
+      <h2 style="font-size: clamp(20px, 3vw, 32px); font-weight: 700; margin-bottom: 1rem;">03 &mdash; THE ECOSYSTEM + MONEY</h2>
+      
+      <div class="card-row" style="align-items:center; justify-content:center;">
+        <div style="flex:1;">
+          <div class="v-card"><strong>CUSTOMERS</strong><br/><small>Discover / Remix / Order</small></div>
+          <div class="flow-arrow" style="margin:0.5rem 0;">&darr;</div>
+          <div class="v-card"><strong>DESIGNERS</strong><br/><small>Create / Publish / Earn</small></div>
+          <div class="flow-arrow" style="margin:0.5rem 0;">&darr;</div>
+          <div class="v-card"><strong>TAILORS</strong><br/><small>Match / Quote / Make</small></div>
+        </div>
+        
+        <div style="font-size:2.5rem; font-weight:900; margin: 0 2rem;">DORI</div>
+
+        <div style="flex:1;">
+          <div class="v-card" style="border-color:#10b981;">Customer Payment (INR)</div>
+          <div class="flow-arrow" style="margin:0.5rem 0;">&darr;</div>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            <div class="v-card"><strong>Tailor</strong> (Production)</div>
+            <div class="v-card"><strong>Designer</strong> (Design fee)</div>
+            <div class="v-card"><strong>DORI</strong> (Platform fee)</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-top:2rem; text-align:center;">
+        <p style="font-size:0.9rem; opacity:0.8;">More Designers &rarr; More Designs &rarr; More Customers &rarr; More Orders &rarr; More Tailors</p>
+        <p style="margin-top:0.5rem; font-weight:bold;">Every creation makes the network more valuable.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 4: Future -->
+  <div id="slide-fullLook" class="slide-content">
+    <div class="slide-body">
+      <h2 style="font-size: clamp(20px, 3vw, 32px); font-weight: 700; margin-bottom: 1rem;">04 &mdash; WHY THIS CAN SCALE</h2>
+      
+      <div class="card-row" style="align-items:flex-start;">
+        <div class="v-card" style="text-align:left;">
+          <h3 style="text-align:center;">NOW</h3>
+          <p style="text-align:center; opacity:0.6; margin-bottom:1rem; font-size:12px;">Hackathon MVP</p>
+          <ul style="padding-left:1.2rem; font-size:13px; line-height:1.5;">
+            <li>Feed &amp; Remix</li>
+            <li>Avatar &amp; Tailor Match</li>
+            <li>Custom request</li>
+            <li>Quote &amp; Order</li>
+          </ul>
+        </div>
+        <div class="flow-arrow" style="margin-top:2rem;">&rarr;</div>
+        <div class="v-card" style="text-align:left;">
+          <h3 style="text-align:center;">NEXT</h3>
+          <p style="text-align:center; opacity:0.6; margin-bottom:1rem; font-size:12px;">Intelligence</p>
+          <ul style="padding-left:1.2rem; font-size:13px; line-height:1.5;">
+            <li>Recommendations</li>
+            <li>Design similarity</li>
+            <li>Digital measurements</li>
+            <li>Style DNA</li>
+          </ul>
+        </div>
+        <div class="flow-arrow" style="margin-top:2rem;">&rarr;</div>
+        <div class="v-card" style="text-align:left;">
+          <h3 style="text-align:center;">FUTURE</h3>
+          <p style="text-align:center; opacity:0.6; margin-bottom:1rem; font-size:12px;">Infrastructure</p>
+          <ul style="padding-left:1.2rem; font-size:13px; line-height:1.5;">
+            <li>AR try-on</li>
+            <li>Fabric marketplace</li>
+            <li>Digital wardrobe</li>
+            <li>Global designer network</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div style="margin-top:2rem; text-align:center;">
+        <h3 style="font-size:1.2rem; font-weight:800; letter-spacing:1px; color:#93c5fd;">INSPIRATION &rarr; DESIGN &rarr; CREATION &rarr; COMMERCE</h3>
+        <p style="margin-top:0.5rem; font-size:1rem; opacity:0.9;">We're building the creation network for custom fashion.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- Controller -->
   <div class="controller" id="controller" role="group" aria-label="Scene state controller">
     <div class="track glass" id="track"></div>
     <div class="capsule glass" id="capsule"></div>
     <div class="cells" id="cells">
-      <div class="cell label-cell cell-label-wrap" id="cell-label" aria-hidden="true">Select state →</div>
-      <button class="cell" id="btn-scene"    data-idx="1" data-scene="scene"    aria-label="Switch scene" disabled>Scene</button>
-      <button class="cell" id="btn-lighting" data-idx="2" data-scene="light"    aria-label="Switch lighting" disabled>Lighting</button>
-      <button class="cell" id="btn-clothing" data-idx="3" data-scene="colorway" aria-label="Switch clothing" disabled>Clothing</button>
-      <button class="cell" id="btn-cast"     data-idx="4" data-scene="fullLook" aria-label="Switch cast" disabled>
-        <span class="option-label">Cast</span>
+      <div class="cell label-cell cell-label-wrap" id="cell-label" aria-hidden="true" style="opacity: 0; pointer-events: none;">Select slide &rarr;</div>
+      <button class="cell" id="btn-scene"    data-idx="1" data-scene="scene"    aria-label="View Problem" disabled>
+        <span class="option-label">Problem</span>
+        <span class="reset-label" style="display:none">Reset</span>
+      </button>
+      <button class="cell" id="btn-lighting" data-idx="2" data-scene="light"    aria-label="View Product" disabled>
+        <span class="option-label">Product</span>
+        <span class="reset-label" style="display:none">Reset</span>
+      </button>
+      <button class="cell" id="btn-clothing" data-idx="3" data-scene="colorway" aria-label="View Ecosystem" disabled>
+        <span class="option-label">Ecosystem</span>
+        <span class="reset-label" style="display:none">Reset</span>
+      </button>
+      <button class="cell" id="btn-cast"     data-idx="4" data-scene="fullLook" aria-label="View Future" disabled>
+        <span class="option-label">Future</span>
         <span class="reset-label" style="display:none">Reset</span>
       </button>
     </div>
@@ -940,6 +1137,16 @@ button.cell.selected-cell{
     });
   });
 
+  // Add stage click listener for resetting when a slide is active
+  stage.addEventListener('click', function(e) {
+    if (currentScene !== 'base' && !locked) {
+      var originBtn = btnMap[currentScene];
+      if (originBtn) {
+        startReverse(currentScene, originBtn);
+      }
+    }
+  });
+
   // ── FORWARD transition ──────────────────────────────────────────────────
   function startForward(scene, originBtn) {
     var token = {};
@@ -991,22 +1198,10 @@ button.cell.selected-cell{
       originBtn.removeAttribute('tabindex');
       originBtn.setAttribute('aria-label', 'Reset — return to base');
 
-      // Show reset label with reveal animation
-      var resetSpan = originBtn.querySelector('.reset-label');
-      var optSpan   = originBtn.querySelector('.option-label');
-      if (resetSpan) {
-        if (optSpan) optSpan.style.display = 'none';
-        resetSpan.style.display = 'inline';
-        resetSpan.style.opacity = '0';
-        resetSpan.style.filter  = 'blur(10px)';
-        requestAnimationFrame(function() {
-          resetSpan.style.transition = 'opacity 520ms, filter 520ms';
-          resetSpan.style.opacity = '1';
-          resetSpan.style.filter  = 'blur(0)';
-        });
-      } else {
-        originBtn.classList.add('showing-reset');
-      }
+      // Show slide
+      document.querySelectorAll('.slide-content').forEach(s => s.classList.remove('active'));
+      var slideEl = document.getElementById('slide-' + scene);
+      if (slideEl) slideEl.classList.add('active');
 
       controller.classList.add('selected');
       announce(scene + ' selected. Press Reset to return.');
@@ -1031,15 +1226,6 @@ button.cell.selected-cell{
 
     // Disable reset button immediately
     originBtn.disabled = true;
-
-    // Fade Reset label out
-    var resetSpan = originBtn.querySelector('.reset-label');
-    var optSpan   = originBtn.querySelector('.option-label');
-    if (resetSpan) {
-      resetSpan.style.transition = 'opacity 300ms, filter 300ms';
-      resetSpan.style.opacity = '0';
-      resetSpan.style.filter  = 'blur(8px)';
-    }
 
     // Expand bar (parallel with reverse clip)
     controller.classList.remove('collapsed');
@@ -1068,17 +1254,12 @@ button.cell.selected-cell{
       // Switch from reset to base frame (video-1 at frame 0)
       makeVisible(baseVideo);
 
-      // Reveal title
+      // Reveal title and hide slides
       stage.classList.remove('title-hidden');
+      document.querySelectorAll('.slide-content').forEach(s => s.classList.remove('active'));
 
       // Restore Reset button to option label
       originBtn.classList.remove('selected-cell');
-      if (resetSpan) {
-        resetSpan.style.display = 'none';
-        if (optSpan) optSpan.style.display = '';
-      } else {
-        originBtn.classList.remove('showing-reset');
-      }
       originBtn.setAttribute('aria-label', 'Switch ' + scene);
 
       // Re-enable all ready buttons

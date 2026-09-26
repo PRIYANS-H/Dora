@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { createRemix } from '../api/client';
+import { createRemix, fetchCatalog } from '../api/client';
 import BeforeAfter from '../components/BeforeAfter';
 import { Sparkles, ArrowRight, RefreshCw, Layers, Check } from 'lucide-react';
 
@@ -16,6 +16,7 @@ export default function RemixPage({ post, onProceedToMatch }) {
   const [remixedImageUrl, setRemixedImageUrl] = useState('');
   const [remixObject, setRemixObject] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [catalog, setCatalog] = useState({ garments: [], fabrics: [] });
 
   useEffect(() => {
     if (post) {
@@ -30,6 +31,15 @@ export default function RemixPage({ post, onProceedToMatch }) {
       setRemixObject(null);
     }
   }, [post]);
+
+  useEffect(() => {
+    let active = true;
+    setCatalog({ garments: [], fabrics: [] });
+    if (post?.tailor_id) fetchCatalog(post.tailor_id).then((value) => { if (active) setCatalog(value); }).catch((error) => console.error(error));
+    return () => { active = false; };
+  }, [post?.tailor_id]);
+
+  const fabricOptions = catalog.fabrics.length ? catalog.fabrics.map((fabric) => fabric.name) : CATEGORIES.fabric;
 
   // Compute attribute diff string
   const diffPrompt = useMemo(() => {
@@ -105,7 +115,7 @@ export default function RemixPage({ post, onProceedToMatch }) {
         </div>
         <div className="text-right">
           <span className="text-xs text-gray-400 block font-mono">Reference Price</span>
-          <span className="text-lg font-bold text-white font-mono">${post.price_reference}</span>
+          <span className="text-lg font-bold text-white font-mono">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: post.currency || 'INR' }).format(Number(post.starting_price_minor || ((post.price_reference || 0) * 100)) / 100)}</span>
         </div>
       </div>
 
@@ -154,7 +164,7 @@ export default function RemixPage({ post, onProceedToMatch }) {
             </p>
           </div>
 
-          {Object.entries(CATEGORIES).map(([cat, options]) => {
+          {Object.entries({ ...CATEGORIES, fabric: fabricOptions }).map(([cat, options]) => {
             const currentVal = selectedAttributes[cat] || '';
             const baseVal = post.base_attributes?.[cat] || '';
             const isChanged = currentVal && baseVal && currentVal.toLowerCase() !== baseVal.toLowerCase();
@@ -194,6 +204,13 @@ export default function RemixPage({ post, onProceedToMatch }) {
               </div>
             );
           })}
+
+          {catalog.garments.length > 0 && <div className="space-y-2 border-b border-white/20/60 pb-4">
+            <label className="text-xs font-bold text-gray-300 uppercase tracking-wider font-mono" htmlFor="remix-garment">Shop garment type</label>
+            <select id="remix-garment" className="w-full rounded-xl lp-glass-input border border-white/20 px-3 py-2 text-sm text-white" value={selectedAttributes.garment_type || catalog.garments.find((item) => item.name.toLowerCase() === String(post.garment_type || '').toLowerCase())?.name || catalog.garments[0].name} onChange={(event) => handleToggleChip('garment_type', event.target.value)}>
+              {catalog.garments.map((item) => <option key={item.id} value={item.name}>{item.name} · {item.category.replace('_', ' ')}</option>)}
+            </select>
+          </div>}
         </div>
 
       </div>

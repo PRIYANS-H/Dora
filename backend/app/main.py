@@ -6,9 +6,19 @@ from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+import cloudinary
+import cloudinary.utils
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 
 from app.database import get_supabase
 from app import schemas
@@ -16,12 +26,15 @@ from app.services.matcher import compute_tailor_match
 from app.services.remix_engine import generate_remixed_image
 from app.seed import seed_database
 from app.auth import router as auth_router
+from app.product_api import router as product_router
+from app.security import get_current_user
 
 app = FastAPI(title="DORI Fashion Remix & Tailoring Engine API", version="2.0.0")
+cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,6 +46,7 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(auth_router)
+app.include_router(product_router)
 
 
 @app.on_event("startup")
@@ -62,6 +76,28 @@ def startup_event():
 def health_check():
     return {"status": "ok", "app": "DORI API", "tagline": "See it. Remix it. Wear it.", "db": "Supabase Postgres"}
 
+@app.get("/cloudinary/signature")
+def get_cloudinary_signature(user=Depends(get_current_user)):
+    if not cloudinary.config().api_secret or not cloudinary.config().cloud_name:
+        raise HTTPException(status_code=503, detail="Image uploads are not configured yet.")
+    timestamp = int(datetime.utcnow().timestamp())
+    folder = f"dori/{user['id']}/posts"
+    params_to_sign = {
+        "timestamp": timestamp,
+        "folder": folder,
+    }
+    signature = cloudinary.utils.api_sign_request(
+        params_to_sign,
+        cloudinary.config().api_secret
+    )
+    return {
+        "signature": signature,
+        "timestamp": timestamp,
+        "folder": folder,
+        "cloud_name": cloudinary.config().cloud_name,
+        "api_key": cloudinary.config().api_key
+    }
+
 
 # ── 1. GET /posts ──────────────────────────────────────────────────────────────
 
@@ -86,17 +122,21 @@ def get_post(id: str):
 # ── 3. GET /remixes ────────────────────────────────────────────────────────────
 
 @app.get("/remixes", response_model=List[schemas.RemixResponse])
-def get_remixes():
+def get_remixes(user=Depends(get_current_user)):
     sb = get_supabase()
-    result = sb.table("remixes").select("*").order("created_at", desc=True).execute()
+    result = sb.table("remixes").select("*").eq("profile_id", user["id"]).order("created_at", desc=True).execute()
     return result.data or []
 
 
 # ── 4. POST /remix ─────────────────────────────────────────────────────────────
 
 @app.post("/remix", response_model=schemas.RemixResponse)
-def create_remix(payload: schemas.RemixCreate):
+def create_remix(payload: schemas.RemixCreate, user=Depends(get_current_user)):
     sb = get_supabase()
+
+    profile = sb.table("profiles").select("id").eq("id", user["id"]).maybe_single().execute().data
+    if not profile:
+        raise HTTPException(status_code=404, detail="Complete your DORI profile first.")
 
     post_res = sb.table("posts").select("*").eq("id", payload.post_id).single().execute()
     if not post_res.data:
@@ -113,7 +153,8 @@ def create_remix(payload: schemas.RemixCreate):
     remix_row = {
         "id": str(uuid.uuid4()),
         "post_id": post["id"],
-        "user_label": "Demo User",
+        "user_label": user.get("email", "DORI member"),
+        "profile_id": profile["id"],
         "attributes": payload.attributes,
         "remixed_image_url": remixed_image_url,
         "created_at": datetime.utcnow().isoformat(),
@@ -136,8 +177,13 @@ def _match_tailors_impl(
     matched = []
     for t in tailors:
         match_data = compute_tailor_match(t, attributes, user_lat=lat, user_lng=lng)
+        profile_data = sb.table("profiles").select("username,bio,location").eq("id", t.get("profile_id")).maybe_single().execute().data if t.get("profile_id") else None
         matched.append(schemas.TailorMatchResponse(
             id=t["id"],
+            profile_id=t.get("profile_id"),
+            username=(profile_data or {}).get("username"),
+            bio=(profile_data or {}).get("bio"),
+            location=(profile_data or {}).get("location"),
             name=t["name"],
             photo_url=t["photo_url"],
             skills=t.get("skills") or [],
@@ -153,6 +199,35 @@ def _match_tailors_impl(
 
     matched.sort(key=lambda x: x.match_score, reverse=True)
     return matched[:3]
+
+
+@app.get("/tailors", response_model=List[schemas.TailorMatchResponse])
+def get_tailors():
+    sb = get_supabase()
+    result = sb.table("tailors").select("*").execute()
+    tailors = result.data or []
+    out = []
+    for t in tailors:
+        profile_data = sb.table("profiles").select("username,bio,location").eq("id", t.get("profile_id")).maybe_single().execute().data if t.get("profile_id") else None
+        out.append(schemas.TailorMatchResponse(
+            id=t["id"],
+            profile_id=t.get("profile_id"),
+            username=(profile_data or {}).get("username"),
+            bio=(profile_data or {}).get("bio"),
+            location=(profile_data or {}).get("location"),
+            name=t["name"],
+            photo_url=t["photo_url"],
+            skills=t.get("skills") or [],
+            lat=t["lat"],
+            lng=t["lng"],
+            rating=t["rating"],
+            reviews_count=t.get("reviews_count", 0),
+            price_band=t.get("price_band", "mid"),
+            portfolio_tags=t.get("portfolio_tags") or [],
+            match_score=0.0,
+            breakdown=schemas.SubScoreBreakdown(skill_overlap=0.0, distance_score=0.0, rating_score=0.0, portfolio_overlap=0.0)
+        ))
+    return out
 
 
 @app.get("/tailors/match", response_model=List[schemas.TailorMatchResponse])
@@ -266,12 +341,16 @@ def update_order_status(id: str, payload: schemas.OrderStatusUpdate):
 # ── 10. GET /orders/{id}/receipt ───────────────────────────────────────────────
 
 @app.get("/orders/{id}/receipt", response_model=schemas.RoyaltyReceiptResponse)
-def get_order_receipt(id: str):
+def get_order_receipt(id: str, user=Depends(get_current_user)):
     sb = get_supabase()
     order_res = sb.table("orders").select("*").eq("id", id).single().execute()
     if not order_res.data:
         raise HTTPException(status_code=404, detail="Order not found")
     order = order_res.data
+    tailor_res = sb.table("tailors").select("profile_id").eq("id", order["tailor_id"]).maybe_single().execute()
+    tailor_profile_id = (tailor_res.data or {}).get("profile_id")
+    if order.get("customer_profile_id") != user["id"] and tailor_profile_id != user["id"]:
+        raise HTTPException(status_code=403, detail="This receipt is only available to the order participants.")
 
     base_price = 300
     if order.get("remix_id"):
@@ -303,8 +382,9 @@ def _fetch_order_relations(sb, order):
     if order.get("tailor_id"):
         tailor_res = sb.table("tailors").select("id,name,photo_url,price_band").eq("id", order["tailor_id"]).single().execute()
         tailor = tailor_res.data
-    if remix and remix.get("post_id"):
-        post_res = sb.table("posts").select("id,title,designer_name,price_reference").eq("id", remix["post_id"]).single().execute()
+    post_id = remix.get("post_id") if remix else order.get("post_id")
+    if post_id:
+        post_res = sb.table("posts").select("id,title,designer_name,price_reference,image_url").eq("id", post_id).maybe_single().execute()
         post = post_res.data
     return remix, tailor, post
 

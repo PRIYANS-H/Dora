@@ -1,160 +1,96 @@
-import React, { useState } from 'react';
-import { createOrder } from '../api/client';
-import { Ruler, ShieldCheck, CheckCircle2, ArrowRight, Scissors } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createOrder, fetchCatalog, fetchMeasurementProfiles, saveMeasurementProfile, updateMeasurementProfile } from '../api/client';
+import { Ruler, ShieldCheck, ArrowRight, ScanLine } from 'lucide-react';
+import MeasurementCapture from '../components/MeasurementCapture';
+
+const FIELDS = {
+  womens: {
+    upper_body: [['bust', 'Bust'], ['waist', 'Waist'], ['shoulder', 'Shoulder'], ['sleeve', 'Sleeve length'], ['half_length', 'Half length']],
+    lower_body: [['waist', 'Waist'], ['hip', 'Hip'], ['height', 'Height'], ['inseam', 'Inside leg'], ['outseam', 'Outside leg']],
+    full_body: [['bust', 'Bust'], ['waist', 'Waist'], ['hip', 'Hip'], ['shoulder', 'Shoulder'], ['full_length', 'Full length']],
+    accessory: [['head', 'Head'], ['neck', 'Neck']], custom: [['height', 'Height'], ['waist', 'Waist']]
+  },
+  mens: {
+    upper_body: [['chest', 'Chest'], ['waist', 'Waist'], ['shoulder', 'Shoulder'], ['sleeve', 'Sleeve length'], ['shirt_length', 'Shirt length']],
+    lower_body: [['waist', 'Waist'], ['hip', 'Hip'], ['leg_length', 'Leg length'], ['inseam', 'Inside leg'], ['outseam', 'Outside leg']],
+    full_body: [['chest', 'Chest'], ['waist', 'Waist'], ['hip', 'Hip'], ['shoulder', 'Shoulder'], ['full_length', 'Full length']],
+    accessory: [['head', 'Head'], ['neck', 'Neck']], custom: [['height', 'Height'], ['waist', 'Waist']]
+  },
+  custom: { upper_body: [['chest_or_bust', 'Chest / bust'], ['waist', 'Waist'], ['shoulder', 'Shoulder'], ['length', 'Garment length']], lower_body: [['waist', 'Waist'], ['hip', 'Hip'], ['inseam', 'Inside leg']], full_body: [['chest_or_bust', 'Chest / bust'], ['waist', 'Waist'], ['hip', 'Hip'], ['length', 'Full length']], accessory: [['size', 'Size']], custom: [['height', 'Height'], ['waist', 'Waist']] }
+};
 
 export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
-  const [measurements, setMeasurements] = useState({
-    chest: '38 in',
-    length: '42 in',
-    shoulder: '17 in',
-    sleeve: '24 in'
-  });
-  const [submitting, setSubmitting] = useState(false);
+  const [fit, setFit] = useState('custom');
+  const [unit, setUnit] = useState('in');
+  const [garments, setGarments] = useState([]);
+  const [fabrics, setFabrics] = useState([]);
+  const [garmentId, setGarmentId] = useState('');
+  const [fabricId, setFabricId] = useState('');
+  const [measurements, setMeasurements] = useState({});
+  const [profiles, setProfiles] = useState([]);
+  const [profileId, setProfileId] = useState('');
+  const [customerNote, setCustomerNote] = useState('');
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [captureOpen, setCaptureOpen] = useState(false);
 
-  const handleChange = (field, value) => {
-    setMeasurements((prev) => ({ ...prev, [field]: value }));
-  };
+  useEffect(() => {
+    let active = true;
+    if (tailor?.id) fetchCatalog(tailor.id).then((catalog) => { if (active) { const list = catalog.garments || []; const cloths = catalog.fabrics || []; setGarments(list); setFabrics(cloths); const match = list.find((item) => item.name.toLowerCase() === String(remix?.attributes?.garment_type || post?.garment_type || '').toLowerCase()); setGarmentId(match?.id || ''); const clothMatch = cloths.find((item) => item.name.toLowerCase() === String(remix?.attributes?.fabric || '').toLowerCase()); setFabricId(clothMatch?.id || ''); } }).catch((e) => setError(e.message));
+    fetchMeasurementProfiles().then((rows) => { if (active) setProfiles(rows); }).catch(() => {});
+    return () => { active = false; };
+  }, [tailor?.id, post?.garment_type, remix?.attributes?.garment_type, remix?.attributes?.fabric]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
+  const garment = garments.find((item) => item.id === garmentId);
+  const originalGarment = remix?.attributes?.garment_type || post?.garment_type || 'custom';
+  const garmentName = originalGarment.toLowerCase();
+  const inferredCategory = /trouser|pant|jean|skirt|short|lower/.test(garmentName) ? 'lower_body' : /dress|gown|jumpsuit|coat|overall|full/.test(garmentName) ? 'full_body' : /shirt|blouse|top|jacket|tie|upper/.test(garmentName) ? 'upper_body' : 'custom';
+  const category = garment?.category || inferredCategory;
+  const fields = useMemo(() => FIELDS[fit]?.[category] || FIELDS[fit]?.custom, [fit, category]);
+  const selectedFabric = fabrics.find((item) => item.id === fabricId);
+
+  const submit = async (e) => {
+    e.preventDefault(); setBusy(true); setError('');
     try {
-      const order = await createOrder(remix.id, tailor.id, measurements);
+      const finalMeasurements = profileId ? {} : Object.fromEntries(Object.entries(measurements).filter(([, value]) => value !== '' && Number(value) > 0).map(([key, value]) => [key, Number(value)]));
+      if (!profileId && Object.keys(finalMeasurements).length === 0) throw new Error('Enter your measurements or choose a saved measurement profile.');
+      const chosenGarment = garment?.name || originalGarment;
+      const notes = [customerNote.trim(), selectedFabric ? `Fabric preference: ${selectedFabric.name}${selectedFabric.color ? ` (${selectedFabric.color})` : ''}` : ''].filter(Boolean).join('\n');
+      const order = await createOrder(remix.id, tailor.id, { ...finalMeasurements, unit, fit_template: fit }, { measurement_profile_id: profileId || undefined, customer_note: notes, garment_type: chosenGarment, phone_number: phone.trim() || undefined, fabric_id: fabricId || undefined });
       onOrderPlaced(order);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { setError(err.message || 'Could not place the order.'); }
+    finally { setBusy(false); }
   };
 
-  if (!remix || !tailor) {
-    return <div className="p-8 text-gray-400 font-mono text-xs">Missing remix or tailor data.</div>;
-  }
+  const saveCurrent = async () => {
+    const values = Object.fromEntries(Object.entries(measurements).filter(([, value]) => value !== '' && Number(value) > 0).map(([key, value]) => [key, Number(value)]));
+    if (!Object.keys(values).length) { setError('Add measurements before saving a profile.'); return; }
+    try { const payload = { label: profiles.find((item) => item.id === profileId)?.label || `${fit === 'womens' ? 'Women’s' : fit === 'mens' ? 'Men’s' : 'Custom'} ${unit} profile`, fit_template: fit, unit, measurements: values }; const saved = profileId ? await updateMeasurementProfile(profileId, payload) : await saveMeasurementProfile(payload); setProfiles((current) => [saved, ...current.filter((item) => item.id !== saved.id)]); setProfileId(saved.id); setError('Measurements saved to your profile.'); }
+    catch (err) { setError(err.message); }
+  };
 
-  return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-12 text-left">
-      {/* Header */}
-      <div className="border-b border-white/20 pb-4">
-        <span className="text-xs font-mono text-white uppercase tracking-widest">
-          Step 4: Machine-Readable Order Brief
-        </span>
-        <h2 className="text-2xl font-bold text-gray-100 m-0 mt-1">
-          Review Garment Spec & Custom Measurements
-        </h2>
-        <p className="text-xs text-gray-400 mt-1">
-          Both tailor and client agree on this machine-readable brief prior to cutting fabric.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        
-        {/* Tailor & Garment Summary Card */}
-        <div className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-white/20/80">
-            <div className="flex items-center gap-3">
-              <img
-                src={tailor.photo_url}
-                alt={tailor.name}
-                className="w-12 h-12 rounded-xl object-cover border border-gray-700"
-              />
-              <div>
-                <h3 className="text-sm font-bold text-gray-200 m-0">{tailor.name}</h3>
-                <span className="text-xs text-white font-mono">Matched Tailor</span>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-gray-400 block font-mono">Reference Price</span>
-              <span className="text-base font-bold text-gray-100 font-mono">
-                ${post?.price_reference || 300}
-              </span>
-            </div>
-          </div>
-
-          {/* Auto-filled Spec Badges */}
-          <div>
-            <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider font-mono mb-2">
-              Remixed Spec Attributes (Auto-filled)
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {Object.entries(remix.attributes || {}).map(([k, v]) => (
-                <div key={k} className="lp-glass-input p-2.5 rounded-xl border border-white/20/80">
-                  <span className="text-[10px] text-gray-400 uppercase font-mono block">{k}</span>
-                  <span className="text-xs font-bold text-gray-300 capitalize font-mono">{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 4-Field Measurement Form */}
-        <div className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-4">
-          <div className="flex items-center gap-2">
-            <Ruler className="w-4 h-4 text-white" />
-            <h3 className="text-sm font-bold text-gray-200 uppercase tracking-wider font-mono m-0">
-              Anatomical Measurements Form
-            </h3>
-          </div>
-          <p className="text-xs text-gray-400">
-            Enter your measurements or use your saved 3D profile standards.
-          </p>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-semibold text-gray-300 block mb-1 font-mono">Chest / Bust</label>
-              <input
-                type="text"
-                value={measurements.chest}
-                onChange={(e) => handleChange('chest', e.target.value)}
-                className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-2 text-xs text-gray-300 font-mono focus:border-white focus:outline-none"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-300 block mb-1 font-mono">Garment Length</label>
-              <input
-                type="text"
-                value={measurements.length}
-                onChange={(e) => handleChange('length', e.target.value)}
-                className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-2 text-xs text-gray-300 font-mono focus:border-white focus:outline-none"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-300 block mb-1 font-mono">Shoulder Width</label>
-              <input
-                type="text"
-                value={measurements.shoulder}
-                onChange={(e) => handleChange('shoulder', e.target.value)}
-                className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-2 text-xs text-gray-300 font-mono focus:border-white focus:outline-none"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-300 block mb-1 font-mono">Sleeve Length</label>
-              <input
-                type="text"
-                value={measurements.sleeve}
-                onChange={(e) => handleChange('sleeve', e.target.value)}
-                className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-2 text-xs text-gray-300 font-mono focus:border-white focus:outline-none"
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Submit Action */}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500  font-extrabold text-sm flex items-center justify-center gap-2 shadow-xl shadow-amber-400/20 hover:scale-[1.01] transition-all disabled:opacity-50"
-        >
-          <Scissors className="w-4 h-4" />
-          {submitting ? 'Confirming Brief...' : 'CONFIRM BRIEF & PLACE ORDER'}
-          <ArrowRight className="w-4 h-4" />
-        </button>
-
-      </form>
+  if (!remix || !tailor) return <div className="p-8 text-gray-400">Choose a design and tailor first.</div>;
+  return <form className="order-brief-page" onSubmit={submit}>
+    <header><span className="dori-kicker">Order details</span><h2>Make it yours</h2><p>Choose a shop option and enter measurements for {garment?.name || originalGarment}. You can revise your measurements any time.</p></header>
+    {error && <div className="shop-error" role="alert">{error}</div>}
+    <div className="order-brief-grid">
+      <section className="shop-panel"><h3><Ruler /> Garment and fit</h3>
+        <label>Shop garment<select value={garmentId} onChange={(e) => { setGarmentId(e.target.value); setProfileId(''); setMeasurements({}); }}><option value="">Use post garment: {originalGarment}</option>{garments.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>
+        {garments.length === 0 && <p className="order-hint">This shop hasn’t added garment options yet; using the post’s garment type.</p>}
+        {fabrics.length > 0 && <label>Available fabric<select value={fabricId} onChange={(e) => setFabricId(e.target.value)}><option value="">No preference</option>{fabrics.map((item) => <option value={item.id} key={item.id}>{item.name}{item.color ? ` · ${item.color}` : ''}{item.image_url ? ' · sample available' : ''}</option>)}</select></label>}
+        {selectedFabric?.image_url && <img className="brief-fabric-preview" src={selectedFabric.image_url} alt={`${selectedFabric.name} fabric sample`} />}
+        <div className="shop-form-row"><label>Fit profile<select value={fit} onChange={(e) => { setFit(e.target.value); setProfileId(''); setMeasurements({}); }}><option value="custom">Custom</option><option value="womens">Women</option><option value="mens">Men</option></select></label><label>Unit<select value={unit} onChange={(e) => setUnit(e.target.value)}><option value="in">Inches</option><option value="cm">Centimeters</option></select></label></div>
+        <label>Saved measurements<select value={profileId} onChange={(e) => { const id = e.target.value; setProfileId(id); const saved = profiles.find((item) => item.id === id); if (saved) { setFit(saved.fit_template); setUnit(saved.unit); setMeasurements(Object.fromEntries(Object.entries(saved.measurements || {}).map(([key, value]) => [key, String(value)]))); } else setMeasurements({}); }}><option value="">Enter measurements now</option>{profiles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+        {!profileId && <div className="measurement-fields">{fields.map(([key, label]) => <label key={key}>{label} ({unit})<input type="number" min="1" max="500" step="0.1" value={measurements[key] || ''} onChange={(e) => setMeasurements((prev) => ({ ...prev, [key]: e.target.value }))} required /></label>)}</div>}
+        <button type="button" className="measurement-capture-open" onClick={() => setCaptureOpen(true)}><ScanLine size={16} /> Measure with camera or photo</button>
+        <button type="button" className="brief-save-measurements" onClick={saveCurrent}>{profileId ? 'Update saved measurements' : 'Save these measurements'}</button>
+      </section>
+      <section className="shop-panel"><h3><ShieldCheck /> Send request</h3><label>Note for the tailor<textarea maxLength="2000" rows="5" value={customerNote} onChange={(e) => setCustomerNote(e.target.value)} placeholder="Fit preferences, delivery questions, or any detail to discuss…" /></label><label>Phone number (optional)<input type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Only shared with this order’s tailor" /></label>
+        <div className="order-summary"><div><span>Design</span><strong>{post?.title || 'Remixed design'}</strong></div><div><span>Tailor</span><strong>{tailor.name}</strong></div><div><span>Starting price</span><strong>{new Intl.NumberFormat('en-IN', { style: 'currency', currency: post?.currency || 'INR' }).format(Number(post?.starting_price_minor ?? ((post?.price_reference || 0) * 100)) / 100)}</strong></div><p>The tailor will confirm the final price with you in order messages before you pay.</p></div>
+        <button disabled={busy} className="brief-submit">{busy ? 'Sending request…' : 'Request this garment'} <ArrowRight size={17} /></button>
+      </section>
     </div>
-  );
+    {captureOpen && <MeasurementCapture fields={fields} unit={unit} onClose={() => setCaptureOpen(false)} onApply={(values) => { setMeasurements(values); setProfileId(''); setCaptureOpen(false); }} />}
+  </form>;
 }

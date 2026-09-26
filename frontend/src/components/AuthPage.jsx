@@ -84,7 +84,7 @@ export default function AuthPage({ onLoginSuccess }) {
               </div>
               <label htmlFor="password" className="text-xs font-semibold text-gray-300 block pt-1">Password</label>
               <div className="relative">
-                <input id="password" type={showPassword ? "text" : "password"} minLength={6} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-3 pr-10 text-sm text-gray-100 focus:border-white focus:outline-none" />
+                <input id="password" type={showPassword ? "text" : "password"} minLength={8} maxLength={72} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-3 pr-10 text-sm text-gray-100 focus:border-white focus:outline-none" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -96,7 +96,7 @@ export default function AuthPage({ onLoginSuccess }) {
             <>
               <label htmlFor="confirmPassword" className="text-xs font-semibold text-gray-300 block pt-1">Confirm Password</label>
               <div className="relative">
-                <input id="confirmPassword" type={showPassword ? "text" : "password"} minLength={6} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="At least 6 characters" className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-3 pr-10 text-sm text-gray-100 focus:border-white focus:outline-none" />
+                <input id="confirmPassword" type={showPassword ? "text" : "password"} minLength={8} maxLength={72} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="At least 8 characters" className="w-full lp-glass-input border border-white/20 rounded-xl px-3 py-3 pr-10 text-sm text-gray-100 focus:border-white focus:outline-none" />
               </div>
             </>
           )}

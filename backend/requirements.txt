@@ -12,3 +12,5 @@ passlib[bcrypt]>=1.7.4
 bcrypt==3.2.2
 PyJWT>=2.8.0
 email-validator>=2.1.0
+cloudinary>=1.36.0
+cryptography>=42.0.0

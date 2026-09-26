@@ -1,24 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { fetchPosts } from '../api/client';
-import { Sparkles, Tag, ArrowRight, Search, Heart } from 'lucide-react';
+import { addComment, fetchComments, fetchEngagement, fetchPosts, likePost, unlikePost } from '../api/client';
+import { Sparkles, Tag, ArrowRight, Search, Heart, MessageCircle, Share2, Send, X } from 'lucide-react';
 
-export default function FeedPage({ onSelectPost }) {
+export default function FeedPage({ onSelectPost, initialPostId }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [activePost, setActivePost] = useState(null);
+  const [engagement, setEngagement] = useState({});
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [commentError, setCommentError] = useState('');
+  const [savingComment, setSavingComment] = useState(false);
 
   useEffect(() => {
     fetchPosts()
       .then((data) => {
         setPosts(data);
+        if (initialPostId) setActivePost(data.find((post) => post.id === initialPostId) || null);
         setLoading(false);
       })
       .catch((err) => {
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [initialPostId]);
+
+  useEffect(() => {
+    if (!activePost) return undefined;
+    let active = true;
+    Promise.all([fetchEngagement(activePost.id), fetchComments(activePost.id)])
+      .then(([stats, rows]) => { if (active) { setEngagement(stats); setComments(rows); } })
+      .catch((error) => { if (active) setCommentError(error.message); });
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setActivePost(null); };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => { active = false; document.removeEventListener('keydown', closeOnEscape); };
+  }, [activePost]);
+
+  const toggleLike = async () => {
+    if (!activePost) return;
+    try {
+      const next = engagement.liked ? await unlikePost(activePost.id) : await likePost(activePost.id);
+      setEngagement((current) => ({ ...current, ...next }));
+    } catch (error) { setCommentError(error.message); }
+  };
+
+  const submitComment = async (event) => {
+    event.preventDefault();
+    if (!commentText.trim()) return;
+    setSavingComment(true); setCommentError('');
+    try {
+      const created = await addComment(activePost.id, commentText.trim());
+      const refreshed = await fetchComments(activePost.id);
+      setComments(refreshed.length ? refreshed : [...comments, created]);
+      setEngagement((current) => ({ ...current, comment_count: (current.comment_count || 0) + 1 }));
+      setCommentText('');
+    } catch (error) { setCommentError(error.message); }
+    finally { setSavingComment(false); }
+  };
+
+  const sharePost = async () => {
+    const url = `${window.location.origin}/app/?post=${encodeURIComponent(activePost.id)}`;
+    try {
+      if (navigator.share) await navigator.share({ title: activePost.title, url });
+      else { await navigator.clipboard.writeText(url); setCommentError('Post link copied.'); }
+    } catch (error) { if (error.name !== 'AbortError') setCommentError('Could not share this post.'); }
+  };
 
   const filteredPosts = posts.filter((p) => {
     const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -92,7 +140,7 @@ export default function FeedPage({ onSelectPost }) {
         {filteredPosts.map((post) => (
           <div
             key={post.id}
-            onClick={() => onSelectPost(post)}
+            onClick={() => setActivePost(post)}
             className="group lp-glass-panel rounded-2xl overflow-hidden border border-white/20/80 cursor-pointer lp-glass-panel-hover flex flex-col justify-between"
           >
             <div>
@@ -106,9 +154,7 @@ export default function FeedPage({ onSelectPost }) {
                 <div className="absolute top-3 left-3 lp-glass-input/80 backdrop-blur px-3 py-1 rounded-full border border-white/20 text-[11px] font-semibold text-gray-200">
                   {post.designer_name}
                 </div>
-                <div className="absolute top-3 right-3 lp-glass-input/80 backdrop-blur p-2 rounded-full border border-white/20 text-gray-400 hover:text-rose-400 transition-colors">
-                  <Heart className="w-3.5 h-3.5" />
-                </div>
+                <span className="absolute top-3 right-3 lp-glass-input/80 backdrop-blur p-2 rounded-full border border-white/20 text-gray-300"><Heart className="w-3.5 h-3.5" /></span>
               </div>
 
               {/* Card Body */}
@@ -118,7 +164,7 @@ export default function FeedPage({ onSelectPost }) {
                     {post.title}
                   </h3>
                   <span className="text-xs font-mono font-semibold text-white lp-glass-button/10 px-2 py-0.5 rounded border border-amber-400/30">
-                    ${post.price_reference}
+                    From {new Intl.NumberFormat('en-IN', { style: 'currency', currency: post.currency || 'INR' }).format(Number(post.starting_price_minor || ((post.price_reference || 0) * 100)) / 100)}
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-400 font-mono">
@@ -142,17 +188,36 @@ export default function FeedPage({ onSelectPost }) {
             {/* Action Footer */}
             <div className="p-5 pt-0 text-left">
               <button
-                onClick={(e) => { e.stopPropagation(); onSelectPost(post); }}
+                onClick={(e) => { e.stopPropagation(); setActivePost(post); }}
                 className="w-full py-2.5 rounded-xl bg-gray-900 group-hover:lp-glass-button text-gray-300 group-hover: text-xs font-bold flex items-center justify-center gap-2 border border-white/20 group-hover:border-white transition-all"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Remix This Design
+                Open design
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </div>
         ))}
       </div>
+      {activePost && <div className="post-detail-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setActivePost(null); }}>
+        <section className="post-detail-panel" role="dialog" aria-modal="true" aria-labelledby="post-detail-title">
+          <button type="button" className="post-detail-close" aria-label="Close post" onClick={() => setActivePost(null)}><X /></button>
+          <div className="post-detail-media"><img src={activePost.image_url} alt={activePost.title} /></div>
+          <div className="post-detail-content">
+            <div className="post-detail-heading"><span className="dori-kicker">{activePost.garment_type || 'DORI design'} · {activePost.designer_handle}</span><h2 id="post-detail-title">{activePost.title}</h2><p>{activePost.caption || activePost.base_attributes?.description || 'A design shared with the DORI community.'}</p></div>
+            <div className="post-detail-actions">
+              <button type="button" onClick={toggleLike} className={engagement.liked ? 'post-liked' : ''}><Heart className="w-4 h-4" fill={engagement.liked ? 'currentColor' : 'none'} />{engagement.like_count || 0} Like</button>
+              <button type="button" onClick={sharePost}><Share2 className="w-4 h-4" />Share</button>
+              <button type="button" className="post-remix-action" onClick={() => { setActivePost(null); onSelectPost(activePost); }}><Sparkles className="w-4 h-4" />Remix this design</button>
+            </div>
+            <div className="post-comments-section"><h3><MessageCircle className="w-4 h-4" /> Comments <span>{engagement.comment_count || 0}</span></h3>
+              <div className="post-comments-list">{comments.map((comment) => <article key={comment.id}><div className="comment-avatar">{comment.profiles?.full_name?.slice(0,1) || 'D'}</div><div><strong>{comment.profiles?.full_name || 'DORI member'}</strong><p>{comment.body}</p></div></article>)}{comments.length === 0 && <p className="post-comments-empty">No comments yet. Start the conversation.</p>}</div>
+              <form onSubmit={submitComment} className="post-comment-form"><input value={commentText} maxLength={2000} onChange={(event) => setCommentText(event.target.value)} placeholder="Write a comment…" aria-label="Write a comment" /><button type="submit" disabled={savingComment || !commentText.trim()} aria-label="Send comment"><Send className="w-4 h-4" /></button></form>
+              {commentError && <p className="post-comment-feedback" role="status">{commentError}</p>}
+            </div>
+          </div>
+        </section>
+      </div>}
     </div>
   );
 }
