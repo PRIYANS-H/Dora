@@ -1,10 +1,11 @@
 import React from 'react';
-import { Compass, Heart, Home, LogOut, Plus, Scissors, Settings, ShoppingBag, Sparkles, UserRound } from 'lucide-react';
+import { Compass, Heart, Home, LogOut, Plus, Scissors, Settings, ShoppingBag, Sparkles, UserRound, Shirt } from 'lucide-react';
 
 const NAV_ITEMS = [
   { id: 'feed', label: 'Feed', icon: Home },
-  { id: 'discover', label: 'Discover', icon: Compass },
+  { id: 'tryon', label: 'Fitting Room', icon: Shirt },
   { id: 'remix', label: 'Remix Studio', icon: Sparkles },
+  { id: 'discover', label: 'Discover', icon: Compass },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
 ];
 
@@ -36,14 +37,14 @@ export default function DashboardShell({ profile, currentStep, onStepClick, onSi
 
       <div className="dori-main">
         <header className="dori-topbar">
-          <div><span className="dori-kicker">DORI / {currentStep}</span><h1>{currentStep === 'feed' ? 'Your fashion orbit' : currentStep === 'discover' ? 'Find your people' : currentStep === 'profile' ? 'Your profile' : currentStep === 'settings' ? 'Account settings' : currentStep === 'create' ? 'Create a post' : currentStep === 'remix' ? 'Remix Studio' : 'Your orders'}</h1></div>
+          <div><span className="dori-kicker">DORI / {currentStep}</span><h1>{currentStep === 'feed' ? 'Your fashion orbit' : currentStep === 'tryon' ? 'AI Virtual Fitting Room' : currentStep === 'discover' ? 'Find your people' : currentStep === 'profile' ? 'Your profile' : currentStep === 'settings' ? 'Account settings' : currentStep === 'create' ? 'Create a post' : currentStep === 'remix' ? 'Remix Studio' : currentStep === 'preview3d' ? '3D Garment Studio' : 'Your orders'}</h1></div>
           <button type="button" className="dori-avatar-button" onClick={() => go('profile')}><span>{profile.full_name?.slice(0, 1).toUpperCase()}</span><strong>@{profile.username}</strong></button>
         </header>
         <main className="dori-content">{children}</main>
       </div>
 
       <nav className="dori-mobile-nav" aria-label="Mobile navigation">
-        {NAV_ITEMS.slice(0, 4).map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => go(id)} className={currentStep === id ? 'active' : ''}><Icon className="w-5 h-5" /><span>{label === 'Remix Studio' ? 'Remix' : label}</span></button>)}
+        {NAV_ITEMS.map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => go(id)} className={currentStep === id ? 'active' : ''}><Icon className="w-5 h-5" /><span>{label === 'Remix Studio' ? 'Remix' : label === 'Fitting Room' ? 'Try-On' : label}</span></button>)}
         <button type="button" onClick={() => go('profile')} className={currentStep === 'profile' || currentStep === 'settings' ? 'active' : ''}><UserRound className="w-5 h-5" /><span>Profile</span></button>
       </nav>
     </div>

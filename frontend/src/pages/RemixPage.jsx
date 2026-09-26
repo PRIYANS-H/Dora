@@ -11,7 +11,7 @@ const CATEGORIES = {
   fit: ['regular', 'relaxed', 'oversized', 'slim', 'bodycon', 'tailored', 'draped', 'flared']
 };
 
-export default function RemixPage({ post, onProceedToMatch, on3DPreview }) {
+export default function RemixPage({ post, onProceedToMatch, on3DPreview, onTryOn }) {
   const [selectedAttributes, setSelectedAttributes] = useState({});
   const [remixedImageUrl, setRemixedImageUrl] = useState('');
   const [remixObject, setRemixObject] = useState(null);
@@ -145,19 +145,36 @@ export default function RemixPage({ post, onProceedToMatch, on3DPreview }) {
             </button>
           </div>
 
-          {on3DPreview && (
-            <button
-              onClick={() => on3DPreview({
-                ...post,
-                image_url: remixedImageUrl || post.image_url,
-                title: `${post.title} (Custom Remix)`
-              })}
-              className="w-full py-2.5 rounded-xl bg-gray-900/90 hover:bg-amber-400/10 text-amber-400 hover:text-amber-300 border border-amber-400/30 hover:border-amber-400/60 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer mt-1"
-            >
-              <span>🧊</span>
-              View Garment in 3D Studio (Rotate & Inspect)
-            </button>
-          )}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            {onTryOn && (
+              <button
+                onClick={() => onTryOn({
+                  ...post,
+                  image_url: remixedImageUrl || post.image_url,
+                  title: `${post.title} (Custom Remix)`,
+                  base_attributes: selectedAttributes
+                })}
+                className="py-2.5 rounded-xl bg-sky-950/80 hover:bg-sky-900/90 text-sky-300 hover:text-sky-200 border border-sky-500/40 hover:border-sky-400 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span>👗</span>
+                Try On This Remix
+              </button>
+            )}
+
+            {on3DPreview && (
+              <button
+                onClick={() => on3DPreview({
+                  ...post,
+                  image_url: remixedImageUrl || post.image_url,
+                  title: `${post.title} (Custom Remix)`
+                })}
+                className="py-2.5 rounded-xl bg-gray-900/90 hover:bg-amber-400/10 text-amber-400 hover:text-amber-300 border border-amber-400/30 hover:border-amber-400/60 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span>🧊</span>
+                View in 3D Studio
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Right Column: Tactile Attribute Chips */}

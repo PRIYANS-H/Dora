@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createOrder } from '../api/client';
 import { Ruler, ShieldCheck, CheckCircle2, ArrowRight, Scissors } from 'lucide-react';
 
-export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
+export default function BriefPage({ remix, tailor, post, onOrderPlaced, tryOnPhoto }) {
   const [measurements, setMeasurements] = useState({
     chest: '38 in',
     length: '42 in',
@@ -86,6 +86,32 @@ export default function BriefPage({ remix, tailor, post, onOrderPlaced }) {
             </div>
           </div>
         </div>
+
+        {/* Client AI Virtual Fitting Preview (if tried on) */}
+        {tryOnPhoto && (
+          <div className="lp-glass-panel rounded-2xl p-6 border border-emerald-500/30 space-y-3 bg-emerald-950/10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase font-mono">
+                <span>👗</span>
+                <span>Client AI Virtual Fitting Reference</span>
+              </div>
+              <span className="text-[11px] text-emerald-400/80 font-mono">IDM-VTON Silhouette</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <img
+                src={tryOnPhoto}
+                alt="Client Virtual Fitting"
+                className="w-24 h-28 object-cover rounded-xl border border-emerald-500/40 shadow-lg"
+              />
+              <div className="space-y-1 text-xs">
+                <p className="text-gray-200 font-semibold m-0">Photorealistic Drape Reference</p>
+                <p className="text-gray-400 text-[11px] m-0 leading-relaxed">
+                  The tailor will reference this client-fitted silhouette during fabric cutting and darting to ensure an exact custom fit matching the digital fitting room preview.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 4-Field Measurement Form */}
         <div className="lp-glass-panel rounded-2xl p-6 border border-white/20 space-y-4">

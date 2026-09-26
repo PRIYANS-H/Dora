@@ -16,6 +16,7 @@ import SettingsPage from './pages/SettingsPage';
 import DiscoverPage from './pages/DiscoverPage';
 import CreatePostPage from './pages/CreatePostPage';
 import PreviewPage3D from './pages/PreviewPage3D';
+import TryOnPage from './pages/TryOnPage';
 
 export default function App() {
   const publicProfile = window.location.pathname.match(/^\/profile\/([^/]+)\/?$/);
@@ -28,6 +29,7 @@ export default function App() {
     if (path.endsWith('/profile')) return 'profile';
     if (path.endsWith('/settings')) return 'settings';
     if (path.endsWith('/create')) return 'create';
+    if (path.endsWith('/tryon')) return 'tryon';
     return 'feed';
   };
 
@@ -67,6 +69,7 @@ export default function App() {
       profile: `${base}/profile`,
       settings: `${base}/settings`,
       create: `${base}/create`,
+      tryon: `${base}/tryon`,
     };
     if (paths[currentStep] && session && profile) {
       window.history.replaceState(null, '', paths[currentStep]);
@@ -80,6 +83,7 @@ export default function App() {
   const [selectedTailor, setSelectedTailor] = useState(null);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [returnStep, setReturnStep] = useState('feed');
+  const [tryOnPhoto, setTryOnPhoto] = useState(null);
 
   if (publicProfile) {
     return <ProfilePage username={decodeURIComponent(publicProfile[1])} />;
@@ -107,15 +111,22 @@ export default function App() {
     setCurrentStep('remix');
   };
 
+  const handleTryOn = (post) => {
+    setSelectedPost(post);
+    setReturnStep(currentStep);
+    setCurrentStep('tryon');
+  };
+
   const handle3DPreview = (post, from = 'feed') => {
     setSelectedPost(post);
     setReturnStep(from);
     setCurrentStep('preview3d');
   };
 
-  const handleProceedToMatch = (remix, attributes) => {
+  const handleProceedToMatch = (remix, attributes, fittedPhoto = null) => {
     setCurrentRemix(remix);
     setCurrentAttributes(attributes);
+    if (fittedPhoto) setTryOnPhoto(fittedPhoto);
     setCurrentStep('match');
   };
 
@@ -141,7 +152,17 @@ export default function App() {
         ) : (
           <>
             {currentStep === 'feed' && (
-              <FeedPage onSelectPost={handleSelectPost} on3DPreview={handle3DPreview} />
+              <FeedPage onSelectPost={handleSelectPost} on3DPreview={handle3DPreview} onTryOn={handleTryOn} />
+            )}
+
+            {currentStep === 'tryon' && (
+              <TryOnPage
+                post={selectedPost}
+                onBack={() => setCurrentStep(returnStep || 'feed')}
+                onProceedToRemix={(p) => { setSelectedPost(p); setCurrentStep('remix'); }}
+                onProceedToMatch={handleProceedToMatch}
+                on3DPreview={(p) => handle3DPreview(p, 'tryon')}
+              />
             )}
 
             {currentStep === 'discover' && <DiscoverPage />}
@@ -164,6 +185,7 @@ export default function App() {
                 post={selectedPost}
                 onProceedToMatch={handleProceedToMatch}
                 on3DPreview={(p) => handle3DPreview(p, 'remix')}
+                onTryOn={handleTryOn}
               />
             )}
 
@@ -181,6 +203,7 @@ export default function App() {
                 tailor={selectedTailor}
                 post={selectedPost}
                 onOrderPlaced={handleOrderPlaced}
+                tryOnPhoto={tryOnPhoto}
               />
             )}
 
@@ -188,6 +211,7 @@ export default function App() {
               <ReceiptPage
                 order={currentOrder}
                 onProceedToTracker={() => setCurrentStep('orders')}
+                tryOnPhoto={tryOnPhoto}
               />
             )}
 

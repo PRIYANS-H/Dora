@@ -106,11 +106,25 @@ class ThreeDRequest(BaseModel):
     image_url: Optional[str] = None
     image_data: Optional[str] = None
     hf_token: Optional[str] = None
+    meshy_api_key: Optional[str] = None
     engine: Optional[str] = "trellis"
 
 class ThreeDResponse(BaseModel):
     glb_url: str
     engine: str
+    status: str
+    message: Optional[str] = None
+
+class TryOnRequest(BaseModel):
+    person_image_data: Optional[str] = None
+    person_image_url: Optional[str] = None
+    garment_image_url: Optional[str] = None
+    garment_image_data: Optional[str] = None
+    garment_description: Optional[str] = "couture dress"
+    denoise_steps: Optional[int] = 20
+
+class TryOnResponse(BaseModel):
+    result_image_url: str
     status: str
     message: Optional[str] = None
 

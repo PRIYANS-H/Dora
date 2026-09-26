@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchOrderReceipt } from '../api/client';
 import { CheckCircle2, DollarSign, Sparkles, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
 
-export default function ReceiptPage({ order, onProceedToTracker }) {
+export default function ReceiptPage({ order, onProceedToTracker, tryOnPhoto }) {
   const [receipt, setReceipt] = useState(null);
 
   useEffect(() => {
@@ -74,9 +74,27 @@ export default function ReceiptPage({ order, onProceedToTracker }) {
         </div>
       </div>
 
+      {tryOnPhoto && (
+        <div className="lp-glass-panel rounded-2xl p-4 border border-emerald-500/30 flex items-center gap-4 bg-emerald-950/15">
+          <img
+            src={tryOnPhoto}
+            alt="Virtual Fitting Attached"
+            className="w-16 h-20 object-cover rounded-lg border border-emerald-500/40 shadow-md shrink-0"
+          />
+          <div>
+            <span className="text-xs font-bold text-emerald-400 font-mono block">
+              ✓ Virtual Fitting Photo Attached to Work Order
+            </span>
+            <span className="text-[11px] text-gray-400 leading-relaxed block mt-0.5">
+              The tailor will use your digital fitting drape during custom cutting to ensure proportional alignment.
+            </span>
+          </div>
+        </div>
+      )}
+
       <button
         onClick={onProceedToTracker}
-        className="w-full py-4 rounded-xl lp-glass-button hover:bg-white/10  font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 transition-all"
+        className="w-full py-4 rounded-xl lp-glass-button hover:bg-white/10  font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 transition-all cursor-pointer"
       >
         Track Order Status Live
         <ArrowRight className="w-4 h-4" />
