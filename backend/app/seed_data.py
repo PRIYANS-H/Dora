@@ -12,7 +12,8 @@ POSTS_SEED = [
             "color": "onyx",
             "fit": "regular"
         },
-        "price_reference": 340
+        "price_reference": 340,
+        "tailor_id": "tailor-001"
     },
     {
         "id": "post-002",
@@ -27,7 +28,8 @@ POSTS_SEED = [
             "color": "emerald",
             "fit": "relaxed"
         },
-        "price_reference": 280
+        "price_reference": 280,
+        "tailor_id": "tailor-002"
     },
     {
         "id": "post-003",
@@ -42,7 +44,8 @@ POSTS_SEED = [
             "color": "earth tones",
             "fit": "oversized"
         },
-        "price_reference": 410
+        "price_reference": 410,
+        "tailor_id": "tailor-003"
     },
     {
         "id": "post-004",
@@ -57,7 +60,8 @@ POSTS_SEED = [
             "color": "burgundy",
             "fit": "slim"
         },
-        "price_reference": 520
+        "price_reference": 520,
+        "tailor_id": "tailor-004"
     },
     {
         "id": "post-005",
@@ -72,7 +76,8 @@ POSTS_SEED = [
             "color": "ivory",
             "fit": "bodycon"
         },
-        "price_reference": 220
+        "price_reference": 220,
+        "tailor_id": "tailor-005"
     },
     {
         "id": "post-006",
@@ -87,7 +92,8 @@ POSTS_SEED = [
             "color": "sapphire",
             "fit": "straight"
         },
-        "price_reference": 360
+        "price_reference": 360,
+        "tailor_id": "tailor-002"
     },
     {
         "id": "post-007",
@@ -102,7 +108,8 @@ POSTS_SEED = [
             "color": "onyx",
             "fit": "draped"
         },
-        "price_reference": 450
+        "price_reference": 450,
+        "tailor_id": "tailor-004"
     },
     {
         "id": "post-008",
@@ -117,7 +124,8 @@ POSTS_SEED = [
             "color": "ochre",
             "fit": "boxy"
         },
-        "price_reference": 195
+        "price_reference": 195,
+        "tailor_id": "tailor-003"
     },
     {
         "id": "post-009",
@@ -132,7 +140,8 @@ POSTS_SEED = [
             "color": "navy",
             "fit": "flared"
         },
-        "price_reference": 590
+        "price_reference": 590,
+        "tailor_id": "tailor-006"
     },
     {
         "id": "post-0010",
@@ -147,7 +156,8 @@ POSTS_SEED = [
             "color": "rose",
             "fit": "tailored"
         },
-        "price_reference": 310
+        "price_reference": 310,
+        "tailor_id": "tailor-006"
     }
 ]
 

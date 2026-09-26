@@ -1,11 +1,14 @@
 import React from 'react';
-import { Compass, Heart, Home, LogOut, Plus, Scissors, Settings, ShoppingBag, Sparkles, UserRound } from 'lucide-react';
+import { Compass, Home, LogOut, Plus, Scissors, Settings, ShoppingBag, Sparkles, UserRound, Store, MessageSquare } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 const NAV_ITEMS = [
   { id: 'feed', label: 'Feed', icon: Home },
   { id: 'discover', label: 'Discover', icon: Compass },
   { id: 'remix', label: 'Remix Studio', icon: Sparkles },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
+  { id: 'messages', label: 'Messages', icon: MessageSquare },
+  { id: 'shop', label: 'Shop inventory', icon: Store },
 ];
 
 export default function DashboardShell({ profile, currentStep, onStepClick, onSignOut, children }) {
@@ -20,13 +23,14 @@ export default function DashboardShell({ profile, currentStep, onStepClick, onSi
         </button>
         <div className="dori-sidebar-label">Your studio</div>
         <nav className="dori-nav-list" aria-label="Main navigation">
-          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+          {NAV_ITEMS.filter(({ id }) => id !== 'shop' || profile.is_professional).map(({ id, label, icon: Icon }) => (
             <button type="button" key={id} onClick={() => go(id)} className={`dori-nav-item ${currentStep === id ? 'active' : ''}`}>
               <Icon className="w-5 h-5" /> <span>{label}</span>
             </button>
           ))}
         </nav>
         {profile.is_professional && <button type="button" onClick={() => go('create')} className="dori-create-button"><Plus className="w-5 h-5" /> New post</button>}
+        {profile.is_professional && <button type="button" onClick={() => go('tailor-orders')} className={`dori-nav-item ${currentStep === 'tailor-orders' ? 'active' : ''}`}><Scissors className="w-5 h-5" /><span>Order inbox</span></button>}
         <div className="dori-sidebar-bottom">
           <button type="button" onClick={() => go('profile')} className={`dori-nav-item ${currentStep === 'profile' ? 'active' : ''}`}><UserRound className="w-5 h-5" /> <span>Profile</span></button>
           <button type="button" onClick={() => go('settings')} className={`dori-nav-item ${currentStep === 'settings' ? 'active' : ''}`}><Settings className="w-5 h-5" /> <span>Settings</span></button>
@@ -36,14 +40,15 @@ export default function DashboardShell({ profile, currentStep, onStepClick, onSi
 
       <div className="dori-main">
         <header className="dori-topbar">
-          <div><span className="dori-kicker">DORI / {currentStep}</span><h1>{currentStep === 'feed' ? 'Your fashion orbit' : currentStep === 'discover' ? 'Find your people' : currentStep === 'profile' ? 'Your profile' : currentStep === 'settings' ? 'Account settings' : currentStep === 'create' ? 'Create a post' : currentStep === 'remix' ? 'Remix Studio' : 'Your orders'}</h1></div>
-          <button type="button" className="dori-avatar-button" onClick={() => go('profile')}><span>{profile.full_name?.slice(0, 1).toUpperCase()}</span><strong>@{profile.username}</strong></button>
+          <div><span className="dori-kicker">DORI / {currentStep}</span><h1>{currentStep === 'feed' ? 'Your fashion orbit' : currentStep === 'discover' ? 'Find your people' : currentStep === 'profile' ? 'Your profile' : currentStep === 'settings' ? 'Account settings' : currentStep === 'create' ? 'Create a post' : currentStep === 'remix' ? 'Remix Studio' : currentStep === 'shop' ? 'Your shop inventory' : currentStep === 'tailor-orders' ? 'Customer order inbox' : currentStep === 'messages' ? 'Messages & negotiation' : 'Your orders'}</h1></div>
+          <div className="dori-topbar-actions"><NotificationBell /><button type="button" className="dori-avatar-button" onClick={() => go('profile')}><span>{profile.full_name?.slice(0, 1).toUpperCase()}</span><strong>@{profile.username}</strong></button></div>
         </header>
         <main className="dori-content">{children}</main>
       </div>
 
       <nav className="dori-mobile-nav" aria-label="Mobile navigation">
-        {NAV_ITEMS.slice(0, 4).map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => go(id)} className={currentStep === id ? 'active' : ''}><Icon className="w-5 h-5" /><span>{label === 'Remix Studio' ? 'Remix' : label}</span></button>)}
+        {NAV_ITEMS.slice(0, 5).map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => go(id)} className={currentStep === id ? 'active' : ''}><Icon className="w-5 h-5" /><span>{label === 'Remix Studio' ? 'Remix' : label}</span></button>)}
+        {profile.is_professional && <><button type="button" onClick={() => go('shop')} className={currentStep === 'shop' ? 'active' : ''}><Store className="w-5 h-5" /><span>Shop</span></button><button type="button" onClick={() => go('create')} className={currentStep === 'create' ? 'active' : ''}><Plus className="w-5 h-5" /><span>Post</span></button><button type="button" onClick={() => go('tailor-orders')} className={currentStep === 'tailor-orders' ? 'active' : ''}><Scissors className="w-5 h-5" /><span>Inbox</span></button></>}
         <button type="button" onClick={() => go('profile')} className={currentStep === 'profile' || currentStep === 'settings' ? 'active' : ''}><UserRound className="w-5 h-5" /><span>Profile</span></button>
       </nav>
     </div>

@@ -18,6 +18,12 @@ class Post(Base):
     title = Column(String, nullable=False)
     base_attributes = Column(JSON, nullable=False)  # {"neckline": "mandarin", "sleeves": "full", ...}
     price_reference = Column(Integer, nullable=False, default=250)
+    starting_price_minor = Column(Integer, nullable=False, default=0)
+    currency = Column(String(3), nullable=False, default="INR")
+    tailor_id = Column(String, nullable=True)
+    profile_id = Column(String, nullable=True)
+    caption = Column(Text, nullable=False, default="")
+    garment_type = Column(String, nullable=False, default="custom")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Remix(Base):

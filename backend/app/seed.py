@@ -16,15 +16,9 @@ def seed_database():
     sb = get_supabase()
 
     # ── Posts ──────────────────────────────────────────────────────────────
-    existing_posts = sb.table("posts").select("id").execute()
-    existing_post_ids = {r["id"] for r in (existing_posts.data or [])}
-
-    posts_to_insert = [p for p in POSTS_SEED if p["id"] not in existing_post_ids]
-    if posts_to_insert:
-        sb.table("posts").insert(posts_to_insert).execute()
-        print(f"  Seeded {len(posts_to_insert)} posts.")
-    else:
-        print("  Posts already seeded — skipping.")
+    for p in POSTS_SEED:
+        sb.table("posts").upsert(p).execute()
+    print(f"  Upserted {len(POSTS_SEED)} posts (with tailor linkages).")
 
     # ── Tailors ────────────────────────────────────────────────────────────
     existing_tailors = sb.table("tailors").select("id").execute()

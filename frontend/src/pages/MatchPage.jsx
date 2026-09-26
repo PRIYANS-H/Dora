@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { matchTailors } from '../api/client';
+import { fetchTailors, matchTailors } from '../api/client';
 import MatchBars from '../components/MatchBars';
 import { Scissors, Star, MapPin, CheckCircle, ArrowRight, Award, ShieldCheck } from 'lucide-react';
 
-export default function MatchPage({ remix, attributes, onSelectTailor }) {
+export default function MatchPage({ remix, attributes, post, onSelectTailor }) {
   const [tailors, setTailors] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    matchTailors(attributes)
-      .then((data) => {
-        setTailors(data);
+    Promise.all([matchTailors(attributes), post?.tailor_id ? fetchTailors() : Promise.resolve([])])
+      .then(([matches, allTailors]) => {
+        if (post?.tailor_id) {
+          const original = matches.find((item) => item.id === post.tailor_id) || allTailors.find((item) => item.id === post.tailor_id);
+          if (original) matches = [original, ...matches.filter((item) => item.id !== post.tailor_id)].slice(0, 4);
+        }
+        setTailors(matches);
         setLoading(false);
       })
       .catch((err) => {
         console.error(err);
         setLoading(false);
       });
-  }, [attributes]);
+  }, [attributes, post?.tailor_id]);
 
   if (loading) {
     return (
@@ -61,6 +65,7 @@ export default function MatchPage({ remix, attributes, onSelectTailor }) {
                 #1 Best Match
               </div>
             )}
+            {post?.tailor_id === tailor.id && <div className="match-original-creator">Original design maker</div>}
 
             <div className="space-y-4">
               {/* Tailor Avatar & Name */}
@@ -120,14 +125,16 @@ export default function MatchPage({ remix, attributes, onSelectTailor }) {
             <div className="pt-6">
               <button
                 onClick={() => onSelectTailor(tailor)}
+                disabled={!tailor.profile_id}
+                title={!tailor.profile_id ? 'This demo seller has not connected a DORI account yet.' : undefined}
                 className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                   idx === 0
                     ? 'lp-glass-button  hover:bg-white/10 shadow-lg shadow-amber-400/20'
                     : 'bg-gray-900 text-gray-200 hover:bg-gray-800 border border-gray-700'
-                }`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <Scissors className="w-4 h-4" />
-                Select {tailor.name.split(' ')[0]}
+                {tailor.profile_id ? `Select ${tailor.name.split(' ')[0]}` : 'Seller not connected'}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

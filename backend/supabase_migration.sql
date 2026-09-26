@@ -59,6 +59,7 @@ create table posts (
   title text not null,
   base_attributes jsonb not null default '{}',
   price_reference integer not null default 250,
+  tailor_id text,
   created_at timestamptz not null default now()
 );
 

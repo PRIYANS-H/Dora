@@ -1,4 +1,5 @@
-export const API_BASE = 'http://localhost:8000/auth';
+// Use relative path so Vite proxy routes requests through the ngrok tunnel
+export const API_BASE = '/api/auth';
 
 export async function customSignUp(email, password) {
   const res = await fetch(`${API_BASE}/signup`, {
@@ -33,6 +34,28 @@ export async function customSignIn(email, password) {
   return data;
 }
 
+export async function customRequestReset(email) {
+  const res = await fetch(`${API_BASE}/request-reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to request reset');
+  return data;
+}
+
+export async function customConfirmReset(email, otp, new_password) {
+  const res = await fetch(`${API_BASE}/confirm-reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp, new_password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to confirm reset');
+  return data;
+}
+
 export function setCustomSession(token, user) {
   localStorage.setItem('custom_token', token);
   localStorage.setItem('custom_user', JSON.stringify(user));
@@ -42,10 +65,30 @@ export function getCustomSession() {
   const token = localStorage.getItem('custom_token');
   const user = localStorage.getItem('custom_user');
   if (!token || !user) return null;
-  return { token, user: JSON.parse(user) };
+  try {
+    return { token, user: JSON.parse(user) };
+  } catch {
+    clearCustomSession();
+    return null;
+  }
+}
+
+export function setCachedProfile(profile) {
+  localStorage.setItem('dori_profile', JSON.stringify(profile));
+}
+
+export function getCachedProfile() {
+  try {
+    const profile = localStorage.getItem('dori_profile');
+    return profile ? JSON.parse(profile) : null;
+  } catch {
+    localStorage.removeItem('dori_profile');
+    return null;
+  }
 }
 
 export function clearCustomSession() {
   localStorage.removeItem('custom_token');
   localStorage.removeItem('custom_user');
+  localStorage.removeItem('dori_profile');
 }
