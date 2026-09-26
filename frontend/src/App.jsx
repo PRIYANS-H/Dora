@@ -101,14 +101,16 @@ export default function App() {
     window.location.href = '/app/';
   };
 
-  // Step Nav Handlers
+  const [returnStep, setReturnStep] = useState('feed');
+
   const handleSelectPost = (post) => {
     setSelectedPost(post);
     setCurrentStep('remix');
   };
 
-  const handle3DPreview = (post) => {
+  const handle3DPreview = (post, from = 'feed') => {
     setSelectedPost(post);
+    setReturnStep(from);
     setCurrentStep('preview3d');
   };
 
@@ -154,7 +156,7 @@ export default function App() {
             {currentStep === 'preview3d' && (
               <PreviewPage3D
                 post={selectedPost}
-                onBack={() => setCurrentStep('feed')}
+                onBack={() => setCurrentStep(returnStep)}
               />
             )}
 
@@ -162,6 +164,7 @@ export default function App() {
               <RemixPage
                 post={selectedPost}
                 onProceedToMatch={handleProceedToMatch}
+                on3DPreview={(p) => handle3DPreview(p, 'remix')}
               />
             )}
 
