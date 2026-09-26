@@ -1,11 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { fetchTailors, matchTailors } from '../api/client';
+import { fetchTailors, matchTailors, sendCollabInvite } from '../api/client';
 import MatchBars from '../components/MatchBars';
-import { Scissors, Star, MapPin, CheckCircle, ArrowRight, Award, ShieldCheck } from 'lucide-react';
+import { avatarSrc, handleAvatarError } from '../utils/avatar';
+import PageLoader from '../components/PageLoader';
+import Spinner from '../components/Spinner';
+import { Scissors, Star, MapPin, CheckCircle, ArrowRight, Award, ShieldCheck, Users } from 'lucide-react';
 
 export default function MatchPage({ remix, attributes, post, onSelectTailor }) {
   const [tailors, setTailors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [collabStatus, setCollabStatus] = useState({});
+
+  const shareForCollab = async (tailor) => {
+    setCollabStatus((current) => ({ ...current, [tailor.id]: 'sending' }));
+    try {
+      await sendCollabInvite(tailor.id, post?.id, attributes);
+      setCollabStatus((current) => ({ ...current, [tailor.id]: 'sent' }));
+    } catch (error) {
+      setCollabStatus((current) => ({ ...current, [tailor.id]: 'error' }));
+      window.alert(error.message);
+    }
+  };
 
   useEffect(() => {
     Promise.all([matchTailors(attributes), post?.tailor_id ? fetchTailors() : Promise.resolve([])])
@@ -24,12 +39,7 @@ export default function MatchPage({ remix, attributes, post, onSelectTailor }) {
   }, [attributes, post?.tailor_id]);
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-gray-400 font-mono">Running AI Tailor Matching Matrix...</p>
-      </div>
-    );
+    return <PageLoader label="Running AI tailor matching…" />;
   }
 
   return (
@@ -71,8 +81,9 @@ export default function MatchPage({ remix, attributes, post, onSelectTailor }) {
               {/* Tailor Avatar & Name */}
               <div className="flex items-center gap-3">
                 <img
-                  src={tailor.photo_url}
+                  src={avatarSrc(tailor.photo_url)}
                   alt={tailor.name}
+                  onError={handleAvatarError}
                   className="w-14 h-14 rounded-2xl object-cover border-2 border-white/20 shadow-md"
                 />
                 <div>
@@ -122,7 +133,7 @@ export default function MatchPage({ remix, attributes, post, onSelectTailor }) {
             </div>
 
             {/* Select Action */}
-            <div className="pt-6">
+            <div className="pt-6 space-y-2">
               <button
                 onClick={() => onSelectTailor(tailor)}
                 disabled={!tailor.profile_id}
@@ -137,6 +148,17 @@ export default function MatchPage({ remix, attributes, post, onSelectTailor }) {
                 {tailor.profile_id ? `Select ${tailor.name.split(' ')[0]}` : 'Seller not connected'}
                 <ArrowRight className="w-4 h-4" />
               </button>
+              {post?.id && (
+                <button
+                  onClick={() => shareForCollab(tailor)}
+                  disabled={!tailor.profile_id || collabStatus[tailor.id] === 'sending' || collabStatus[tailor.id] === 'sent'}
+                  title={!tailor.profile_id ? 'This demo seller has not connected a DORI account yet.' : 'Share this design\'s full spec so this tailor can collaborate on or remix it.'}
+                  className="w-full py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-transparent text-gray-300 hover:text-white border border-white/20 hover:border-white/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {collabStatus[tailor.id] === 'sending' ? <Spinner size="sm" /> : <Users className="w-3.5 h-3.5" />}
+                  {collabStatus[tailor.id] === 'sent' ? 'Design shared ✓' : collabStatus[tailor.id] === 'sending' ? 'Sharing…' : 'Share design to collaborate'}
+                </button>
+              )}
             </div>
 
           </div>

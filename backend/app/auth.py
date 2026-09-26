@@ -84,6 +84,18 @@ def _otp_matches(stored, supplied):
     return isinstance(stored, str) and isinstance(supplied, str) and hmac.compare_digest(stored, supplied)
 
 
+@router.post("/lookup")
+def lookup(payload: dict = Body(...)):
+    """Lets the single email-first sign-in screen choose "welcome back" vs "create account"."""
+    email = str(payload.get("email") or "").strip().lower()
+    if "@" not in email or len(email) > 254:
+        raise HTTPException(status_code=422, detail="Enter a valid email address.")
+    res = get_supabase().table("custom_users").select("is_verified").eq("email", email).limit(1).execute()
+    if not res.data:
+        return {"exists": False, "verified": False}
+    return {"exists": True, "verified": bool(res.data[0].get("is_verified"))}
+
+
 @router.post("/signup")
 def signup(payload: dict = Body(...)):
     email, password = _credentials(payload)

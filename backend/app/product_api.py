@@ -8,7 +8,7 @@ import requests
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Header, Body
 from cryptography.fernet import Fernet, InvalidToken
 from postgrest.exceptions import APIError
 import cloudinary
@@ -116,7 +116,7 @@ def _mark_order_paid(sb, payment_row, payment_id):
 
 
 @router.get("/media/signature")
-def media_upload_signature(asset: str = Query("posts", pattern="^(avatars|posts|fabrics)$"), user=Depends(get_current_user)):
+def media_upload_signature(asset: str = Query("posts", pattern="^(avatars|posts|fabrics|tryon)$"), user=Depends(get_current_user)):
     if not cloudinary.config().api_secret or not cloudinary.config().cloud_name:
         raise HTTPException(status_code=503, detail="Image uploads are not configured yet.")
     folder = f"dori/{user['id']}/{asset}"
@@ -316,7 +316,20 @@ def get_public_profile(username: str, user=Depends(get_optional_user)):
             raise HTTPException(status_code=404, detail="Profile not found.")
         return {"id": tailor.data["id"], "username": tailor.data["id"], "full_name": tailor.data["name"], "avatar_url": tailor.data["photo_url"], "bio": " · ".join(tailor.data.get("skills") or []), "is_professional": True, "skills": tailor.data.get("skills") or [], "rating": tailor.data.get("rating"), "reviews_count": tailor.data.get("reviews_count"), "price_band": tailor.data.get("price_band"), "portfolio_tags": tailor.data.get("portfolio_tags") or [], "followers_count": 0}
     profile = result.data
-    profile["followers_count"] = sb.table("follows").select("follower_profile_id", count="exact", head=True).eq("followed_profile_id", profile["id"]).execute().count or 0
+    try:
+        profile["followers_count"] = sb.table("follows").select("follower_profile_id", count="exact", head=True).eq("followed_profile_id", profile["id"]).execute().count or 0
+        profile["following_count"] = sb.table("follows").select("followed_profile_id", count="exact", head=True).eq("follower_profile_id", profile["id"]).execute().count or 0
+    except Exception as e:
+        print(f"[DORI] Could not load follow counts: {e}")
+        profile["followers_count"] = 0
+        profile["following_count"] = 0
+    if profile.get("is_professional"):
+        tailor = sb.table("tailors").select("rating,reviews_count,price_band,portfolio_tags").eq("profile_id", profile["id"]).maybe_single().execute().data
+        if tailor:
+            profile["rating"] = tailor.get("rating")
+            profile["reviews_count"] = tailor.get("reviews_count")
+            profile["price_band"] = tailor.get("price_band")
+            profile["portfolio_tags"] = tailor.get("portfolio_tags") or []
     return profile
 
 
@@ -435,6 +448,41 @@ def update_post(post_id: str, payload: schemas.PostUpdate, user=Depends(get_curr
     return result.data[0]
 
 
+@router.post("/tailors/{tailor_id}/collab-invite", status_code=201)
+def send_collab_invite(tailor_id: str, payload: dict = Body(...), user=Depends(get_current_user)):
+    """Share a design's full spec with a tailor so they can collaborate on / remix it."""
+    sb = get_supabase()
+    sender = _require_profile(user)
+    tailor = sb.table("tailors").select("id,profile_id,name").eq("id", tailor_id).maybe_single().execute().data
+    if not tailor:
+        raise HTTPException(status_code=404, detail="Tailor not found.")
+    if not tailor.get("profile_id"):
+        raise HTTPException(status_code=409, detail="This tailor has not connected a DORI account yet.")
+
+    post_id = payload.get("post_id")
+    post = sb.table("posts").select("id,title,image_url,base_attributes,caption").eq("id", post_id).maybe_single().execute().data if post_id else None
+    if not post:
+        raise HTTPException(status_code=404, detail="Design not found.")
+
+    attrs = payload.get("attributes") or post.get("base_attributes") or {}
+    attr_summary = ", ".join(f"{k}: {v}" for k, v in attrs.items()) or "No custom attributes specified."
+    body = (
+        f"{sender.get('full_name', 'A DORI member')} shared \"{post['title']}\" with you for collaboration.\n"
+        f"Design spec — {attr_summary}"
+    )
+
+    _notify(
+        sb,
+        tailor["profile_id"],
+        "collab_invite",
+        f"New design collaboration: {post['title']}",
+        body,
+        f"/app/?post={post['id']}",
+        f"collab-{sender['id']}-{tailor['id']}-{post['id']}",
+    )
+    return {"sent": True, "tailor": tailor["name"], "post_title": post["title"]}
+
+
 @router.get("/tailors/{tailor_id}/catalog")
 def get_tailor_catalog(tailor_id: str):
     sb = get_supabase()
@@ -463,7 +511,12 @@ def create_garment_type(payload: schemas.GarmentTypeInput, user=Depends(get_curr
     profile = _require_profile(user, professional=True)
     if payload.category not in {"upper_body", "lower_body", "full_body", "accessory", "custom"}:
         raise HTTPException(status_code=422, detail="Choose a supported garment category.")
-    result = get_supabase().table("garment_types").insert({"profile_id": profile["id"], "name": payload.name.strip()[:80], "category": payload.category, "description": payload.description.strip()[:500], "active": payload.active}).execute()
+    row = {"profile_id": profile["id"], "name": payload.name.strip()[:80], "category": payload.category, "description": payload.description.strip()[:500], "active": payload.active}
+    if payload.image_url:
+        row["image_url"] = payload.image_url.strip()[:2000]
+    if payload.post_id:
+        row["post_id"] = payload.post_id
+    result = get_supabase().table("garment_types").insert(row).execute()
     return result.data[0]
 
 
@@ -472,9 +525,11 @@ def update_garment_type(garment_id: str, payload: schemas.GarmentTypeInput, user
     profile = _require_profile(user, professional=True)
     if payload.category not in {"upper_body", "lower_body", "full_body", "accessory", "custom"}:
         raise HTTPException(status_code=422, detail="Choose a supported garment category.")
-    data = payload.model_dump()
-    data["name"] = data["name"].strip()[:80]
-    data["description"] = data["description"].strip()[:500]
+    data = {"name": payload.name.strip()[:80], "category": payload.category, "description": payload.description.strip()[:500], "active": payload.active}
+    if payload.image_url is not None:
+        data["image_url"] = payload.image_url.strip()[:2000] or None
+    if payload.post_id is not None:
+        data["post_id"] = payload.post_id or None
     result = get_supabase().table("garment_types").update(data).eq("id", garment_id).eq("profile_id", profile["id"]).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Garment type not found.")

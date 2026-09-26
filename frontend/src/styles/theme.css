@@ -1,0 +1,300 @@
+/* ==========================================================================
+   DORI design system — lifted from the landing page (frontend/index.html) so
+   every screen shares its glass, type and motion. Tokens first, then the
+   primitives (glass, buttons, fields, chips), then shared widgets.
+   ========================================================================== */
+
+:root {
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-slow: cubic-bezier(0.65, 0, 0.35, 1);
+  --dori-ease: var(--ease);
+
+  --text: #fff;
+  --text-2: rgb(255 255 255 / 0.72);
+  --text-3: rgb(255 255 255 / 0.5);
+  --text-4: rgb(255 255 255 / 0.36);
+  --hair: rgb(255 255 255 / 0.1);
+  --hair-2: rgb(255 255 255 / 0.2);
+  --hair-3: rgb(255 255 255 / 0.32);
+
+  /* Landing: .track / .auth-modal */
+  --glass: rgb(24 55 82 / 0.31);
+  --glass-deep: rgb(10 24 38 / 0.62);
+  --glass-soft: rgb(24 55 82 / 0.16);
+  --glass-filter: blur(24px) saturate(126%) contrast(108%) brightness(103%);
+  --glass-shadow:
+    0 14px 38px rgb(4 24 43 / 0.16),
+    0 2px 7px rgb(4 24 43 / 0.1),
+    inset 1px 1px 0 rgb(255 255 255 / 0.4),
+    inset -1px -1px 0 rgb(21 49 73 / 0.14),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.12);
+  /* Landing: .capsule */
+  --capsule: rgb(246 251 255 / 0.2);
+  --capsule-filter: blur(13px) saturate(128%) contrast(107%) brightness(105%);
+  --capsule-shadow:
+    0 11px 28px rgb(4 24 43 / 0.17),
+    0 2px 6px rgb(4 24 43 / 0.1),
+    inset 1px 1px 0 rgb(255 255 255 / 0.62),
+    inset -1px -1px 0 rgb(20 49 73 / 0.18),
+    inset 0 0 12px rgb(255 255 255 / 0.055);
+  /* Landing: the cyan → white → pink conic rim */
+  --edge: conic-gradient(from 225deg, #7fe3ff, rgb(255 255 255 / 0.35), #fff, #ffd7e6, rgb(255 255 255 / 0.35), #7fe3ff);
+  --sheen: linear-gradient(90deg, #7fe3ff, #fff 50%, #ffd7e6);
+
+  --cyan: #7fe3ff;
+  --pink: #ffd7e6;
+  --navy: #183752;
+  --ok: #8ff0c6;
+  --warn: #ffd59a;
+  --bad: #ff9fb0;
+
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 24px;
+  --r-xl: 30px;
+}
+
+html { background: #000; }
+body { letter-spacing: -0.01em; }
+::selection { background: rgb(255 255 255 / 0.2); }
+:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+img { max-width: 100%; }
+
+/* ── Ambient backdrop: the landing's dark stage, lit by soft navy / cyan / pink ── */
+.ambient { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: #000; }
+.ambient::before {
+  content: ''; position: absolute; inset: -18%;
+  background:
+    radial-gradient(38% 34% at 16% 10%, rgb(40 88 130 / 0.55), transparent 72%),
+    radial-gradient(30% 28% at 88% 6%, rgb(127 227 255 / 0.13), transparent 72%),
+    radial-gradient(36% 34% at 82% 92%, rgb(255 215 230 / 0.1), transparent 72%),
+    radial-gradient(46% 40% at 28% 98%, rgb(24 55 82 / 0.55), transparent 72%);
+  animation: ambient-drift 38s var(--ease-slow) infinite alternate;
+}
+.ambient::after { content: ''; position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgb(0 0 0 / 0.55)); }
+@keyframes ambient-drift { to { transform: translate3d(3%, -2.5%, 0) scale(1.06); } }
+
+/* ── Glass: the landing's .track, reusable everywhere ─────────────────────── */
+.glass {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  border: 1px solid var(--hair-2);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-shadow);
+}
+.glass::before,
+.glass-capsule::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background:
+    radial-gradient(120% 150% at var(--glass-x, 24%) var(--glass-y, 8%), rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 53%),
+    linear-gradient(115deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 42%);
+}
+.glass::after,
+.glass-capsule::after,
+.glass-rim::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  padding: 1px;
+  background: var(--edge);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.27;
+}
+.glass-deep { background: var(--glass-deep); }
+.glass-soft { background: var(--glass-soft); box-shadow: inset 1px 1px 0 rgb(255 255 255 / 0.18); }
+.glass-flat::before { display: none; }
+
+/* The landing's foreground capsule (hover / selected pill) */
+.glass-capsule {
+  position: relative;
+  isolation: isolate;
+  border-radius: 999px;
+  background: var(--capsule);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  -webkit-backdrop-filter: var(--capsule-filter);
+  backdrop-filter: var(--capsule-filter);
+  box-shadow: var(--capsule-shadow);
+}
+.glass-capsule::after { opacity: 0.3; }
+.glass-rim { position: relative; isolation: isolate; }
+
+/* ── Type ───────────────────────────────────────────────────────────────── */
+.display { font-weight: 500; letter-spacing: -0.04em; line-height: 0.92; margin: 0; }
+.title-xl { font-size: clamp(38px, 5.2vw, 72px); }
+.title-lg { font-size: clamp(30px, 3.4vw, 46px); }
+.title-md { font-size: clamp(22px, 2.2vw, 30px); line-height: 1.05; }
+.title-sm { font-size: 19px; line-height: 1.15; }
+.lede { margin: 0; color: var(--text-2); font-size: 15px; line-height: 1.55; letter-spacing: -0.02em; }
+.muted { color: var(--text-3); }
+.tiny { font-size: 12px; }
+.kicker { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; font-weight: 500; letter-spacing: -0.02em; }
+.kicker::before { content: ''; flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / 0.6); }
+.kicker.live::before { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.sheen-text { background: var(--sheen); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ── Buttons: the landing's .try-now pill ───────────────────────────────── */
+.btn {
+  --btn-h: 40px;
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: var(--btn-h); padding: 0 18px;
+  color: #fff; background: transparent;
+  border: 1px solid rgb(255 255 255 / 0.75); border-radius: 999px;
+  font: 500 14px/1 'Manrope', system-ui, sans-serif; letter-spacing: -0.02em; white-space: nowrap;
+  text-decoration: none; cursor: pointer;
+  transition: color 300ms, background 300ms, border-color 300ms, transform 300ms var(--ease), opacity 200ms, box-shadow 300ms;
+}
+.btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.btn:hover:not(:disabled), .btn:focus-visible { color: #0b1a26; background: #fff; border-color: #fff; }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.btn-solid { color: #0b1a26; background: #fff; border-color: #fff; }
+.btn-solid:hover:not(:disabled) { background: rgb(255 255 255 / 0.86); border-color: transparent; box-shadow: 0 0 0 5px rgb(255 255 255 / 0.1); }
+.btn-glass {
+  background: var(--capsule); border-color: rgb(255 255 255 / 0.28);
+  -webkit-backdrop-filter: var(--capsule-filter); backdrop-filter: var(--capsule-filter);
+  box-shadow: 0 11px 28px rgb(4 24 43 / 0.17), inset 1px 1px 0 rgb(255 255 255 / 0.5);
+}
+.btn-ghost { background: rgb(255 255 255 / 0.06); border-color: rgb(255 255 255 / 0.12); }
+.btn-ghost:hover:not(:disabled), .btn-ghost:focus-visible { color: #fff; background: rgb(255 255 255 / 0.14); border-color: rgb(255 255 255 / 0.22); }
+.btn-quiet { border-color: transparent; color: var(--text-2); }
+.btn-quiet:hover:not(:disabled), .btn-quiet:focus-visible { color: #fff; background: rgb(255 255 255 / 0.08); border-color: transparent; }
+.btn-danger { border-color: rgb(255 159 176 / 0.5); color: var(--bad); }
+.btn-danger:hover:not(:disabled) { color: #2b0710; background: var(--bad); border-color: var(--bad); }
+.btn-sm { --btn-h: 32px; padding: 0 13px; font-size: 12.5px; gap: 6px; }
+.btn-sm svg { width: 14px; height: 14px; }
+.btn-lg { --btn-h: 50px; padding: 0 26px; font-size: 15.5px; }
+.btn-icon { width: var(--btn-h); padding: 0; }
+.btn-block { width: 100%; }
+.btn .spin { width: 15px; height: 15px; }
+
+/* ── Fields ─────────────────────────────────────────────────────────────── */
+.field { display: grid; gap: 8px; min-width: 0; }
+.field-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--text-2); font-size: 12.5px; font-weight: 500; letter-spacing: -0.01em; }
+.input {
+  width: 100%; min-width: 0; height: 46px; padding: 0 16px;
+  color: #fff; background: rgb(0 0 0 / 0.26);
+  border: 1px solid var(--hair-2); border-radius: 14px; outline: none;
+  font: 400 14px 'Manrope', system-ui, sans-serif; letter-spacing: -0.01em;
+  transition: border-color 200ms, background 200ms, box-shadow 250ms;
+}
+.input::placeholder { color: var(--text-4); }
+.input:focus { border-color: rgb(255 255 255 / 0.5); background: rgb(0 0 0 / 0.36); box-shadow: 0 0 0 4px rgb(127 227 255 / 0.08); }
+textarea.input { height: auto; min-height: 96px; padding: 12px 16px; line-height: 1.55; resize: vertical; }
+select.input {
+  appearance: none; padding-right: 40px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='white' stroke-opacity='.7' stroke-width='1.6'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 16px center;
+}
+select.input option { color: #0b1a26; }
+.input-pill { border-radius: 999px; padding: 0 20px; }
+.input-icon { position: relative; display: block; }
+.input-icon > svg { position: absolute; left: 16px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+.input-icon > .input { padding-left: 42px; }
+
+/* Segmented control (Male / Female, in / cm …) */
+.segmented { position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 4px; border-radius: 999px; background: rgb(0 0 0 / 0.28); border: 1px solid var(--hair-2); }
+.segmented button { position: relative; z-index: 1; height: 36px; padding: 0 18px; color: var(--text-2); background: none; border: 0; border-radius: 999px; font: 500 13.5px 'Manrope', sans-serif; letter-spacing: -0.02em; cursor: pointer; transition: color 300ms; }
+.segmented button.is-active { color: #0b1a26; }
+.segmented .segmented-thumb { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; border-radius: 999px; background: #fff; box-shadow: 0 6px 18px rgb(0 0 0 / 0.3); transition: transform 520ms var(--ease), width 520ms var(--ease); }
+
+/* ── Chips, pills, badges ───────────────────────────────────────────────── */
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; color: var(--text-2); background: rgb(255 255 255 / 0.06); border: 1px solid var(--hair); border-radius: 999px; font-size: 12px; font-weight: 500; letter-spacing: -0.01em; white-space: nowrap; text-transform: capitalize; }
+.chip svg { width: 13px; height: 13px; }
+.chip-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.35); }
+.status-pill { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px; border-radius: 999px; font-size: 12px; font-weight: 500; text-transform: capitalize; color: var(--text); background: rgb(255 255 255 / 0.08); border: 1px solid var(--hair-2); white-space: nowrap; }
+.status-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.9; }
+.status-pill.tone-wait { color: var(--warn); }
+.status-pill.tone-talk { color: var(--cyan); }
+.status-pill.tone-pay { color: var(--pink); }
+.status-pill.tone-done { color: var(--ok); }
+.status-pill.tone-off { color: var(--text-3); }
+
+/* ── Avatar with DORI-logo fallback ─────────────────────────────────────── */
+.avatar { position: relative; display: inline-grid; flex: 0 0 auto; place-items: center; overflow: hidden; border-radius: 50%; background: #0b1622; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.18); }
+.avatar > img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-logo { background: radial-gradient(120% 120% at 28% 14%, #2e5f86 0%, #10273a 52%, #04070b 100%); }
+.avatar-logo svg { width: 58%; height: auto; color: #fff; filter: drop-shadow(0 1px 4px rgb(0 0 0 / 0.35)); }
+.avatar.is-square { border-radius: 28%; }
+
+/* ── Motion: the landing's blur-rise reveal ─────────────────────────────── */
+@keyframes rise { from { opacity: 0; filter: blur(12px); transform: translateY(10px); } to { opacity: 1; filter: none; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { from { opacity: 0; filter: blur(8px); transform: translateY(14px) scale(0.97); } to { opacity: 1; filter: none; transform: none; } }
+.rise { animation: rise 820ms var(--ease) both; animation-delay: calc(var(--i, 0) * 55ms); }
+.page-enter { animation: rise 700ms var(--ease) both; }
+
+/* ── Capsule tabs: the landing's track + sliding capsule ───────────────── */
+.capsule-track { position: relative; display: inline-flex; align-items: center; gap: 2px; padding: 5px; border-radius: 999px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.capsule-track::-webkit-scrollbar { display: none; }
+.capsule-thumb { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; border-radius: 999px; }
+.capsule-thumb.is-ready { transition: transform 620ms var(--ease), width 620ms var(--ease), height 620ms var(--ease), opacity 300ms; }
+.capsule-cell { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 18px; color: rgb(255 255 255 / 0.72); background: transparent; border: 0; border-radius: 999px; font: 400 15px 'Manrope', sans-serif; letter-spacing: -0.03em; white-space: nowrap; cursor: pointer; transition: color 300ms; }
+.capsule-cell svg { width: 16px; height: 16px; }
+.capsule-cell:hover, .capsule-cell.is-active { color: #fff; }
+.capsule-cell.is-active { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.capsule-track.is-sm .capsule-cell { height: 32px; padding: 0 13px; font-size: 13px; }
+.capsule-track.is-lg .capsule-cell { height: 54px; padding: 0 26px; font-size: 19px; }
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.modal-backdrop { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 24px; background: rgb(0 0 0 / 0.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); animation: fade 260ms var(--ease) both; }
+.modal { position: relative; display: flex; flex-direction: column; width: min(560px, 100%); max-height: min(90dvh, 900px); overflow: hidden; border-radius: 28px; background: rgb(14 32 50 / 0.58); box-shadow: 0 30px 90px rgb(0 0 0 / 0.55), inset 1px 1px 0 rgb(255 255 255 / 0.35); animation: pop 520ms var(--ease) both; }
+.modal:focus { outline: none; }
+.modal.size-lg { width: min(880px, 100%); }
+.modal.size-xl { width: min(1120px, 100%); height: min(780px, 90dvh); }
+.modal-close { position: absolute; z-index: 5; top: 14px; right: 14px; display: grid; place-items: center; width: 38px; height: 38px; color: #fff; background: rgb(0 0 0 / 0.32); border: 1px solid rgb(255 255 255 / 0.22); border-radius: 50%; cursor: pointer; transition: transform 400ms var(--ease), background 200ms; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.modal-close:hover { background: rgb(255 255 255 / 0.18); transform: rotate(90deg); }
+.modal-close svg { width: 18px; height: 18px; }
+@media (max-width: 720px) {
+  .modal-backdrop { place-items: end center; padding: 0; }
+  .modal, .modal.size-lg, .modal.size-xl { width: 100%; height: auto; max-height: 94dvh; border-radius: 26px 26px 0 0; animation-name: sheet; }
+}
+@keyframes sheet { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ── Toasts ─────────────────────────────────────────────────────────────── */
+.toast-stack { position: fixed; z-index: 220; left: 50%; bottom: 28px; display: grid; justify-items: center; gap: 8px; transform: translateX(-50%); pointer-events: none; }
+.toast { display: inline-flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 18px; color: #fff; font-size: 13.5px; font-weight: 500; letter-spacing: -0.02em; border-radius: 999px; animation: pop 460ms var(--ease) both; pointer-events: auto; }
+.toast svg { width: 16px; height: 16px; }
+.toast.tone-ok svg { color: var(--ok); }
+.toast.tone-bad svg { color: var(--bad); }
+@media (max-width: 900px) { .toast-stack { bottom: 104px; } }
+
+/* ── Stats (followers / following / designs) ────────────────────────────── */
+.stat-row { display: grid; grid-auto-columns: 1fr; grid-auto-flow: column; padding: 4px; border-radius: 22px; background: rgb(0 0 0 / 0.22); border: 1px solid var(--hair); box-shadow: inset 1px 1px 0 rgb(255 255 255 / 0.06); }
+.stat { position: relative; display: grid; justify-items: center; gap: 4px; padding: 14px 8px 12px; }
+.stat + .stat::before { content: ''; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: linear-gradient(transparent, rgb(255 255 255 / 0.18), transparent); }
+.stat strong { font-size: 28px; font-weight: 500; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.stat strong.is-loading { color: var(--text-4); }
+.stat span { color: var(--text-3); font-size: 12px; font-weight: 500; letter-spacing: -0.01em; }
+
+/* ── Empty states & notices ─────────────────────────────────────────────── */
+.empty { display: grid; justify-items: center; gap: 10px; padding: 56px 24px; color: var(--text-3); text-align: center; }
+.empty .avatar { margin-bottom: 6px; }
+.empty strong { color: #fff; font-size: 17px; font-weight: 500; letter-spacing: -0.03em; }
+.empty p { max-width: 380px; margin: 0; font-size: 13.5px; line-height: 1.55; }
+.notice { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 16px; font-size: 13px; line-height: 1.45; border: 1px solid var(--hair-2); background: rgb(255 255 255 / 0.05); }
+.notice svg { flex: 0 0 auto; width: 16px; height: 16px; }
+.notice.tone-bad { color: #ffd4dc; background: rgb(255 80 110 / 0.1); border-color: rgb(255 159 176 / 0.3); }
+.notice.tone-ok { color: #d8fff0; background: rgb(143 240 198 / 0.08); border-color: rgb(143 240 198 / 0.28); }
+.notice.tone-info { color: #dff7ff; background: rgb(127 227 255 / 0.07); border-color: rgb(127 227 255 / 0.25); }
+
+/* ── Loaders (re-tinted from amber to the landing's cyan/white/pink) ────── */
+.dori-top-loader-bar { background: linear-gradient(90deg, transparent, #7fe3ff, #fff, #ffd7e6, transparent) !important; box-shadow: 0 0 12px rgb(127 227 255 / 0.6) !important; }
+.dori-spinner { background: conic-gradient(from 0deg, transparent, #7fe3ff, #fff, #ffd7e6) !important; }
+.dori-page-transition { animation: rise 700ms var(--ease) both; }
+
+/* ── Legacy class upgrades so untouched screens pick up the same glass ──── */
+.lp-glass-panel { position: relative; isolation: isolate; background: var(--glass); border: 1px solid var(--hair-2); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); box-shadow: var(--glass-shadow); }
+.dori-primary-button { border-radius: 999px; font-weight: 500; font-size: 13px; letter-spacing: -0.02em; padding: 11px 18px; }
+.dori-secondary-button { border-radius: 999px; font-weight: 500; font-size: 13px; letter-spacing: -0.02em; padding: 11px 18px; border-color: rgb(255 255 255 / 0.75); background: transparent; }
+.dori-secondary-button:hover { background: #fff; color: #0b1a26; }
+.settings-main, .settings-security, .create-post-page { border-radius: var(--r-xl); }
+.settings-heading h2, .settings-security h2, .create-post-fields h2, .shop-intro h2 { font-weight: 500; letter-spacing: -0.04em; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+}

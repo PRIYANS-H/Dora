@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { acceptOrderQuote, createCheckout, fetchOrderById, fetchOrders, fetchOrderMessages, sendOrderMessage } from '../api/client';
 import { Clock, RefreshCw, Send, MessageCircle, CreditCard } from 'lucide-react';
+import PageLoader from '../components/PageLoader';
+import Spinner from '../components/Spinner';
 
 const money = (minor, currency = 'INR') => new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format((minor || 0) / 100);
 
@@ -12,6 +14,7 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -25,8 +28,11 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
         try { setMessages(await fetchOrderMessages(id)); } catch {}
       } else { setOrder(null); }
     } catch (e) { setError(e.message); }
+    finally { setInitialLoading(false); }
   }, [orderId, selectedId]);
   useEffect(() => { load(); }, []);
+
+  if (initialLoading) return <PageLoader label="Loading your orders…" />;
 
   const send = async (e) => { e.preventDefault(); if (!draft.trim() || !order) return; setBusy(true); try { await sendOrderMessage(order.id, draft.trim()); setDraft(''); await load(); } catch (e2) { setError(e2.message); } finally { setBusy(false); } };
   const accept = async (quote) => { setBusy(true); try { await acceptOrderQuote(order.id, quote.id); await load(); } catch (e) { setError(e.message); } finally { setBusy(false); } };
@@ -151,13 +157,13 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
                   {quote.message && <p className="text-sm text-gray-300 bg-black/20 p-3 rounded-xl">{quote.message}</p>}
                   
                   {quote.status === 'proposed' && (
-                    <button disabled={busy} onClick={() => accept(quote)} className="self-start mt-2 px-6 py-2.5 bg-amber-500 text-black font-bold rounded-xl hover:bg-amber-400 transition-colors disabled:opacity-50">
-                      Accept price
+                    <button disabled={busy} onClick={() => accept(quote)} className="self-start mt-2 px-6 py-2.5 bg-amber-500 text-black font-bold rounded-xl hover:bg-amber-400 transition-colors disabled:opacity-50 flex items-center gap-2">
+                      {busy && <Spinner size="sm" />} Accept price
                     </button>
                   )}
                   {quote.status === 'accepted' && (
                     <button disabled={busy} onClick={checkout} className="self-start mt-2 px-6 py-2.5 bg-emerald-500 text-black font-bold rounded-xl hover:bg-emerald-400 transition-colors flex items-center gap-2 disabled:opacity-50">
-                      <CreditCard size={18} /> Pay securely
+                      {busy ? <Spinner size="sm" /> : <CreditCard size={18} />} Pay securely
                     </button>
                   )}
                 </section>
@@ -186,7 +192,7 @@ export default function TrackerPage({ orderId, onSwitchToTailorView }) {
                 <form onSubmit={send} className="flex gap-2 bg-black/40 p-2 rounded-full border border-white/10 focus-within:border-emerald-500/50 transition-colors mt-2">
                   <input className="flex-1 bg-transparent px-4 text-sm text-white outline-none placeholder:text-gray-600" value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={5000} placeholder="Write a message…" />
                   <button className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-black hover:bg-emerald-400 transition-colors disabled:opacity-50 disabled:bg-white/10 disabled:text-gray-500" disabled={busy || !draft.trim()}>
-                    <Send size={16} className="ml-0.5" />
+                    {busy ? <Spinner size="sm" /> : <Send size={16} className="ml-0.5" />}
                   </button>
                 </form>
               </section>

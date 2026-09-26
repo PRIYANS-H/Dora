@@ -27,7 +27,8 @@ from app.services.remix_engine import generate_remixed_image
 from app.seed import seed_database
 from app.auth import router as auth_router
 from app.product_api import router as product_router
-from app.security import get_current_user
+from app.tryon_api import router as tryon_router
+from app.security import get_current_user, get_optional_user
 
 app = FastAPI(title="DORI Fashion Remix & Tailoring Engine API", version="2.0.0")
 cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",") if origin.strip()]
@@ -47,6 +48,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(auth_router)
 app.include_router(product_router)
+app.include_router(tryon_router)
 
 
 @app.on_event("startup")
@@ -102,10 +104,35 @@ def get_cloudinary_signature(user=Depends(get_current_user)):
 # ── 1. GET /posts ──────────────────────────────────────────────────────────────
 
 @app.get("/posts", response_model=List[schemas.PostResponse])
-def get_posts():
+def get_posts(user=Depends(get_optional_user)):
+    """Feed ranking: most recent first, with posts from people you follow boosted to the top."""
     sb = get_supabase()
-    result = sb.table("posts").select("*").order("created_at", desc=False).execute()
-    return result.data or []
+    result = sb.table("posts").select("*").order("created_at", desc=True).execute()
+    posts = result.data or []
+
+    followed_ids = set()
+    if user:
+        try:
+            profile = sb.table("profiles").select("id").eq("id", user["id"]).maybe_single().execute().data
+            if profile:
+                follows_res = (
+                    sb.table("follows")
+                    .select("followed_profile_id")
+                    .eq("follower_profile_id", profile["id"])
+                    .execute()
+                )
+                followed_ids = {row["followed_profile_id"] for row in (follows_res.data or [])}
+        except Exception as e:
+            # The follow-boost is a ranking nicety, not core functionality — never let it
+            # take the whole feed down if the follows table has an unexpected shape.
+            print(f"[DORI] Could not load follows for feed ranking: {e}")
+
+    if followed_ids:
+        # Stable sort: posts are already newest-first, so this only pulls followed
+        # authors' posts to the top while preserving recency order within each group.
+        posts.sort(key=lambda post: 0 if post.get("profile_id") in followed_ids else 1)
+
+    return posts
 
 
 # ── 2. GET /posts/{id} ─────────────────────────────────────────────────────────

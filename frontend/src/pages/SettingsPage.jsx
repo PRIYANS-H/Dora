@@ -1,7 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Check, ImagePlus, KeyRound, LoaderCircle, Save, X, MapPin, ShieldCheck } from 'lucide-react';
 import Cropper from 'react-easy-crop';
-import { supabase } from '../api/supabase';
 import { customRequestReset, customConfirmReset } from '../api/auth';
 import { uploadImage } from '../api/client';
 import { updateMyProfile, fetchRazorpaySettings, saveRazorpaySettings, disableRazorpaySettings } from '../api/client';
@@ -84,9 +83,7 @@ export default function SettingsPage({ session, profile, onSaved }) {
     }
     let data;
     try {
-      data = await updateMyProfile({ username: form.username, full_name: form.full_name, bio: form.bio, is_professional: form.is_professional, avatar_url: avatarUrl, skills: form.skills.split(',').map((value) => value.trim()).filter(Boolean), location: form.location, latitude: form.latitude === '' ? null : Number(form.latitude), longitude: form.longitude === '' ? null : Number(form.longitude), phone_number: form.phone_number, phone_visible_to_order_partners: form.phone_visible_to_order_partners });
-      const { error: emailError } = await supabase.from('profiles').update({ email: form.email.trim() }).eq('id', profile.id);
-      if (emailError) throw new Error(emailError.message);
+      data = await updateMyProfile({ username: form.username, email: form.email.trim(), full_name: form.full_name, bio: form.bio, is_professional: form.is_professional, avatar_url: avatarUrl, skills: form.skills.split(',').map((value) => value.trim()).filter(Boolean), location: form.location, latitude: form.latitude === '' ? null : Number(form.latitude), longitude: form.longitude === '' ? null : Number(form.longitude), phone_number: form.phone_number, phone_visible_to_order_partners: form.phone_visible_to_order_partners });
       data = { ...data, email: form.email.trim() };
     } catch (profileError) { setSaving(false); setError(profileError.message); return; }
     
