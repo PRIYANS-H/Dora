@@ -405,19 +405,19 @@ async def generate_3d(payload: schemas.ThreeDRequest):
         else:
             preprocessed_image_arg = handle_file(str(preprocess_result))
 
-        # Step 3: Generate 3D model
-        print("[TRELLIS] Generating 3D GLB (this takes 30-60s)…")
+        # Step 3: Generate 3D model with 2K PBR Textures & Higher Sampling
+        print("[TRELLIS] Generating 3D GLB with 2K PBR Textures (this takes 30-75s)…")
         gen_result = client.predict(
             image=preprocessed_image_arg,
             multiimages=[],
             seed=0,
             ss_guidance_strength=7.5,
-            ss_sampling_steps=12,
+            ss_sampling_steps=18,
             slat_guidance_strength=3.0,
-            slat_sampling_steps=12,
+            slat_sampling_steps=18,
             multiimage_algo="stochastic",
             mesh_simplify=0.95,
-            texture_size=1024,
+            texture_size=2048,
             api_name="/generate_and_extract_glb"
         )
         print(f"[TRELLIS] Raw generation result: {gen_result}")
@@ -455,14 +455,16 @@ async def generate_3d(payload: schemas.ThreeDRequest):
         model_id = str(uuid.uuid4())
         dest_path = os.path.join(MODELS_DIR, f"{model_id}.glb")
         shutil.copy2(glb_source, dest_path)
+        # Also cache as latest_garment.glb for instant reload
+        shutil.copy2(glb_source, os.path.join(MODELS_DIR, "latest_garment.glb"))
         glb_url = f"/static/models/{model_id}.glb"
-        print(f"[TRELLIS] Saved GLB -> {dest_path}")
+        print(f"[TRELLIS] Saved 2K Colored GLB -> {dest_path}")
 
         return schemas.ThreeDResponse(
             glb_url=glb_url,
             engine="trellis",
             status="ready",
-            message="3D model generated successfully via Microsoft TRELLIS"
+            message="3D model generated with full 2K PBR color and texture via Microsoft TRELLIS"
         )
 
     except Exception as e:

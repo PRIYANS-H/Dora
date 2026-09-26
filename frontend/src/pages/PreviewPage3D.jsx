@@ -144,46 +144,47 @@ export default function PreviewPage3D({ post, onBack }) {
         )}
 
         {/* 3D Model Selector & Engine Switcher */}
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "center", maxWidth: "600px" }}>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", justifyContent: "center", maxWidth: "650px" }}>
           <button
             onClick={() => setEngine("trellis")}
             style={{
-              padding: "10px 18px",
-              borderRadius: "10px",
-              fontSize: "12px",
-              fontWeight: 700,
+              padding: "12px 20px",
+              borderRadius: "12px",
+              fontSize: "13px",
+              fontWeight: 800,
               cursor: "pointer",
               transition: "all 0.2s",
-              border: engine === "trellis" ? "1px solid #f59e0b" : "1px solid #1e2a38",
-              background: engine === "trellis" ? "rgba(245, 158, 11, 0.15)" : "#111827",
+              border: engine === "trellis" ? "2px solid #f59e0b" : "1px solid #1e2a38",
+              background: engine === "trellis" ? "rgba(245, 158, 11, 0.2)" : "#111827",
               color: engine === "trellis" ? "#f59e0b" : "#94a3b8",
+              boxShadow: engine === "trellis" ? "0 0 20px rgba(245, 158, 11, 0.25)" : "none",
             }}
           >
-            🧊 Microsoft TRELLIS (Full Color & PBR Texture)
+            🎨 Microsoft TRELLIS (Full Photorealistic Color & PBR Texture)
           </button>
           <button
             onClick={() => setEngine("hunyuan3d")}
             style={{
-              padding: "10px 18px",
-              borderRadius: "10px",
-              fontSize: "12px",
+              padding: "12px 20px",
+              borderRadius: "12px",
+              fontSize: "13px",
               fontWeight: 700,
               cursor: "pointer",
               transition: "all 0.2s",
-              border: engine === "hunyuan3d" ? "1px solid #38bdf8" : "1px solid #1e2a38",
+              border: engine === "hunyuan3d" ? "2px solid #38bdf8" : "1px solid #1e2a38",
               background: engine === "hunyuan3d" ? "rgba(56, 189, 248, 0.15)" : "#111827",
-              color: engine === "hunyuan3d" ? "#38bdf8" : "#94a3b8",
+              color: engine === "hunyuan3d" ? "#38bdf8" : "#64748b",
             }}
           >
-            ⚡ Tencent Hunyuan3D-2 (320k Ultra-Dense Mesh)
+            🏛️ Tencent Hunyuan3D-2 (White Clay Mesh Only)
           </button>
         </div>
 
         {/* 3D Viewer */}
         {glbUrl && (
-          <div style={{ width: "100%", maxWidth: "700px" }}>
+          <div style={{ width: "100%", maxWidth: "720px" }}>
             <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "8px", letterSpacing: "1px", textAlign: "center" }}>
-              3D MODEL PREVIEW · <span style={{ color: "#f59e0b", textTransform: "uppercase" }}>{activeEngine}</span>
+              3D MODEL PREVIEW · <span style={{ color: "#f59e0b", textTransform: "uppercase", fontWeight: 700 }}>{activeEngine}</span>
             </div>
             {/* Status badge */}
             <div style={{ textAlign: "center", marginBottom: "12px" }}>
@@ -193,25 +194,29 @@ export default function PreviewPage3D({ post, onBack }) {
                 color: status === "ready" ? "#34d399" : status === "quota_exceeded" ? "#f59e0b" : "#a5b4fc",
                 border: `1px solid ${status === "ready" ? "#065f46" : status === "quota_exceeded" ? "#92400e" : "#312e81"}`
               }}>
-                {STATUS_ICONS[status] || "•"} {status?.replace("_", " ").toUpperCase()}
+                {STATUS_ICONS[status] || "•"} {status?.replace("_", " ").toUpperCase()} · {activeEngine === 'trellis' ? '🎨 Colored 2K PBR' : '🏛️ Clay Sculpt'}
               </span>
             </div>
 
-            {/* model-viewer web component */}
+            {/* model-viewer web component with Studio Lighting */}
             <model-viewer
               ref={modelViewerRef}
               src={glbUrl}
               camera-controls
               auto-rotate
-              shadow-intensity="1.5"
+              rotation-per-second="20deg"
+              shadow-intensity="1.4"
+              shadow-softness="0.6"
               environment-image="neutral"
-              exposure="0.9"
+              exposure="1.25"
+              tone-mapping="commerce"
+              interaction-prompt="auto"
               style={{
                 width: "100%",
-                height: "480px",
-                background: "linear-gradient(180deg, #0c1017 0%, #111827 100%)",
+                height: "520px",
+                background: "radial-gradient(circle at 50% 40%, #1e293b 0%, #0c1017 90%)",
                 borderRadius: "16px",
-                border: "1px solid #1e2a38",
+                border: "1px solid #2a3a4a",
                 display: "block",
               }}
             >
