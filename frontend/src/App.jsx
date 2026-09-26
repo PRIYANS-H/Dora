@@ -15,6 +15,7 @@ import TailorPage from './pages/TailorPage';
 import SettingsPage from './pages/SettingsPage';
 import DiscoverPage from './pages/DiscoverPage';
 import CreatePostPage from './pages/CreatePostPage';
+import PreviewPage3D from './pages/PreviewPage3D';
 
 export default function App() {
   const publicProfile = window.location.pathname.match(/^\/profile\/([^/]+)\/?$/);
@@ -106,6 +107,11 @@ export default function App() {
     setCurrentStep('remix');
   };
 
+  const handle3DPreview = (post) => {
+    setSelectedPost(post);
+    setCurrentStep('preview3d');
+  };
+
   const handleProceedToMatch = (remix, attributes) => {
     setCurrentRemix(remix);
     setCurrentAttributes(attributes);
@@ -134,7 +140,7 @@ export default function App() {
         ) : (
           <>
             {currentStep === 'feed' && (
-              <FeedPage onSelectPost={handleSelectPost} />
+              <FeedPage onSelectPost={handleSelectPost} on3DPreview={handle3DPreview} />
             )}
 
             {currentStep === 'discover' && <DiscoverPage />}
@@ -144,6 +150,13 @@ export default function App() {
             {currentStep === 'settings' && <SettingsPage session={session} profile={profile} onSaved={setProfile} />}
 
             {currentStep === 'create' && <CreatePostPage profile={profile} onPosted={() => handleStepClick('feed')} />}
+
+            {currentStep === 'preview3d' && (
+              <PreviewPage3D
+                post={selectedPost}
+                onBack={() => setCurrentStep('feed')}
+              />
+            )}
 
             {currentStep === 'remix' && (
               <RemixPage

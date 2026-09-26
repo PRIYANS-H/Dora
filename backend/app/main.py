@@ -272,6 +272,159 @@ def generate_ai_caption(payload: schemas.CaptionRequest):
 
 
 
+# ── 3D Preview — TRELLIS via Hugging Face ZeroGPU ──────────────────────────────
+
+@app.get("/3d/status")
+def threed_status():
+    """Check if the TRELLIS space is reachable."""
+    try:
+        from gradio_client import Client
+        load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"), override=True)
+        hf_token = os.getenv("HF_TOKEN") or None
+        client = Client("trellis-community/TRELLIS", hf_token=hf_token)
+        return {"status": "reachable", "space": "trellis-community/TRELLIS", "hf_token_set": bool(hf_token)}
+    except Exception as e:
+        return {"status": "unreachable", "error": str(e), "space": "trellis-community/TRELLIS"}
+
+
+@app.post("/3d/generate", response_model=schemas.ThreeDResponse)
+async def generate_3d(payload: schemas.ThreeDRequest):
+    """
+    Generate a 3D GLB model from an image using Microsoft TRELLIS (ZeroGPU).
+    Falls back to a demo .glb on quota errors.
+    """
+    import tempfile, shutil, urllib.request
+    from pathlib import Path
+
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"), override=True)
+
+    # Resolve HF token (payload > env)
+    hf_token = payload.hf_token or os.getenv("HF_TOKEN") or None
+
+    MODELS_DIR = os.path.join(STATIC_DIR, "models")
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    DEMO_GLB_URL = "/static/models/couture_garment_demo.glb"
+
+    # ── Download / decode the input image into a temp file ────────────────────
+    tmp_dir = tempfile.mkdtemp()
+    img_path = os.path.join(tmp_dir, "input.png")
+
+    try:
+        if payload.image_data:
+            # base64 data URI or raw base64
+            raw = payload.image_data
+            if "," in raw:
+                raw = raw.split(",", 1)[1]
+            with open(img_path, "wb") as f:
+                f.write(base64.b64decode(raw))
+        elif payload.image_url:
+            url = payload.image_url
+            # Handle relative /static/ URLs → absolute
+            if url.startswith("/static/"):
+                url = f"http://127.0.0.1:8000{url}"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as resp, open(img_path, "wb") as f:
+                f.write(resp.read())
+        else:
+            raise HTTPException(status_code=400, detail="Provide image_url or image_data")
+
+        # ── Call TRELLIS via gradio_client ──────────────────────────────────
+        try:
+            from gradio_client import Client, handle_file
+        except ImportError:
+            raise HTTPException(status_code=500, detail="gradio_client not installed. Run: pip install gradio_client")
+
+        print(f"[TRELLIS] Connecting to space (hf_token={'set' if hf_token else 'none'})…")
+        client = Client("trellis-community/TRELLIS", hf_token=hf_token)
+
+        # Step 1: Start session
+        print("[TRELLIS] Starting session…")
+        session_result = client.predict(api_name="/start_session")
+        print(f"[TRELLIS] Session started: {session_result}")
+
+        # Step 2: Preprocess image (background removal)
+        print("[TRELLIS] Preprocessing image (background removal)…")
+        preprocess_result = client.predict(
+            image=handle_file(img_path),
+            api_name="/preprocess_image"
+        )
+        print(f"[TRELLIS] Preprocessed: {preprocess_result}")
+        preprocessed_path = preprocess_result if isinstance(preprocess_result, str) else str(preprocess_result)
+
+        # Step 3: Generate 3D model
+        print("[TRELLIS] Generating 3D GLB (this takes 30–60s)…")
+        gen_result = client.predict(
+            multiimages=[],
+            seed=0,
+            ss_guidance_strength=7.5,
+            ss_sampling_steps=12,
+            slat_guidance_strength=3.0,
+            slat_sampling_steps=12,
+            multiimage_algo="stochastic",
+            mesh_simplify=0.95,
+            texture_size=1024,
+            api_name="/generate_and_extract_glb"
+        )
+        print(f"[TRELLIS] Generation result: {gen_result}")
+
+        # Result is a tuple: (state_dict, video_path, glb_path, glb_path)
+        glb_source = None
+        if isinstance(gen_result, (list, tuple)):
+            for item in gen_result:
+                if isinstance(item, str) and item.endswith(".glb"):
+                    glb_source = item
+                    break
+        elif isinstance(gen_result, str) and gen_result.endswith(".glb"):
+            glb_source = gen_result
+
+        if not glb_source or not os.path.exists(glb_source):
+            print(f"[TRELLIS] Could not locate GLB in result: {gen_result}")
+            return schemas.ThreeDResponse(
+                glb_url=DEMO_GLB_URL,
+                engine="trellis",
+                status="demo",
+                message="TRELLIS returned no GLB file. Showing demo model."
+            )
+
+        # Save to static/models/
+        model_id = str(uuid.uuid4())
+        dest_path = os.path.join(MODELS_DIR, f"{model_id}.glb")
+        shutil.copy2(glb_source, dest_path)
+        glb_url = f"/static/models/{model_id}.glb"
+        print(f"[TRELLIS] Saved GLB → {dest_path}")
+
+        return schemas.ThreeDResponse(
+            glb_url=glb_url,
+            engine="trellis",
+            status="ready",
+            message="3D model generated successfully via Microsoft TRELLIS"
+        )
+
+    except Exception as e:
+        error_str = str(e)
+        print(f"[TRELLIS] Error: {error_str}")
+
+        # Quota exceeded → graceful fallback
+        quota_keywords = ["quota", "zerogpu", "exceeded", "try again", "authenticate"]
+        if any(kw in error_str.lower() for kw in quota_keywords):
+            return schemas.ThreeDResponse(
+                glb_url=DEMO_GLB_URL,
+                engine="trellis",
+                status="quota_exceeded",
+                message=f"ZeroGPU quota exceeded. Showing demo model. Add HF_TOKEN to .env for more quota. ({error_str[:200]})"
+            )
+
+        return schemas.ThreeDResponse(
+            glb_url=DEMO_GLB_URL,
+            engine="trellis",
+            status="error",
+            message=f"TRELLIS error: {error_str[:300]}. Showing demo model."
+        )
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 # ── 2. GET /posts/{id} ─────────────────────────────────────────────────────────
 
 @app.get("/posts/{id}", response_model=schemas.PostResponse)

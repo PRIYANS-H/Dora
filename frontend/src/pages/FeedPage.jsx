@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchPosts } from '../api/client';
 import { Sparkles, Tag, ArrowRight, Search, Heart } from 'lucide-react';
 
-export default function FeedPage({ onSelectPost }) {
+export default function FeedPage({ onSelectPost, on3DPreview }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,15 +161,24 @@ export default function FeedPage({ onSelectPost }) {
             </div>
 
             {/* Action Footer */}
-            <div className="p-5 pt-0 text-left">
+            <div className="p-5 pt-0 text-left flex gap-2">
               <button
                 onClick={(e) => { e.stopPropagation(); onSelectPost(post); }}
-                className="w-full py-2.5 rounded-xl bg-gray-900 group-hover:lp-glass-button text-gray-300 group-hover: text-xs font-bold flex items-center justify-center gap-2 border border-white/20 group-hover:border-white transition-all"
+                className="flex-1 py-2.5 rounded-xl bg-gray-900 group-hover:lp-glass-button text-gray-300 text-xs font-bold flex items-center justify-center gap-2 border border-white/20 group-hover:border-white transition-all"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Remix This Design
+                Remix
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </button>
+              {on3DPreview && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); on3DPreview(post); }}
+                  title="Generate 3D Preview with Microsoft TRELLIS"
+                  className="px-3 py-2.5 rounded-xl bg-gray-900 text-gray-400 hover:text-amber-400 text-xs font-bold border border-white/20 hover:border-amber-400/50 transition-all flex items-center gap-1.5"
+                >
+                  🧊 3D
+                </button>
+              )}
             </div>
           </div>
         ))}
