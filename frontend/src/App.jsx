@@ -79,6 +79,7 @@ export default function App() {
   const [currentAttributes, setCurrentAttributes] = useState(null);
   const [selectedTailor, setSelectedTailor] = useState(null);
   const [currentOrder, setCurrentOrder] = useState(null);
+  const [returnStep, setReturnStep] = useState('feed');
 
   if (publicProfile) {
     return <ProfilePage username={decodeURIComponent(publicProfile[1])} />;
@@ -100,8 +101,6 @@ export default function App() {
     clearCustomSession();
     window.location.href = '/app/';
   };
-
-  const [returnStep, setReturnStep] = useState('feed');
 
   const handleSelectPost = (post) => {
     setSelectedPost(post);
