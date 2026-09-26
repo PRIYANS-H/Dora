@@ -11,9 +11,12 @@ const STATUS_ICONS = {
 };
 
 export default function PreviewPage3D({ post, onBack }) {
-  const [glbUrl, setGlbUrl] = useState(null);
-  const [status, setStatus] = useState(null);   // "ready" | "quota_exceeded" | "demo" | "error" | "generating"
-  const [message, setMessage] = useState(null);
+  // Default to loading the latest generated garment so the user has an immediate 3D preview
+  const [glbUrl, setGlbUrl] = useState(`${API_BASE}/static/models/latest_garment.glb`);
+  const [status, setStatus] = useState("ready");
+  const [engine, setEngine] = useState("trellis"); // "trellis" | "hunyuan3d"
+  const [activeEngine, setActiveEngine] = useState("trellis");
+  const [message, setMessage] = useState("Interactive 3D Preview ready. Drag to rotate, scroll to zoom.");
   const [loading, setLoading] = useState(false);
   const [hfToken, setHfToken] = useState(() => localStorage.getItem("hf_token") || "");
   const [showToken, setShowToken] = useState(false);
@@ -29,13 +32,15 @@ export default function PreviewPage3D({ post, onBack }) {
     }
     setLoading(true);
     setStatus("generating");
-    setMessage("Sending to Microsoft TRELLIS… this takes 30–60 seconds.");
+    const engineName = engine === "hunyuan3d" ? "Tencent Hunyuan3D 2.0" : "Microsoft TRELLIS";
+    setMessage(`Generating 3D model with ${engineName}… Please wait.`);
     setGlbUrl(null);
 
     try {
       const payload = {
         image_url: imageUrl,
         hf_token: hfToken.trim() || null,
+        engine: engine,
       };
 
       const res = await fetch(`${API_BASE}/3d/generate`, {
@@ -50,18 +55,18 @@ export default function PreviewPage3D({ post, onBack }) {
       }
 
       const data = await res.json();
-      // glb_url from backend is relative like /static/models/xxx.glb — make it absolute
       const absoluteGlb = data.glb_url.startsWith("http")
         ? data.glb_url
         : `${API_BASE}${data.glb_url}`;
 
       setGlbUrl(absoluteGlb);
       setStatus(data.status);
+      setActiveEngine(data.engine || engine);
       setMessage(data.message);
     } catch (err) {
       setStatus("error");
-      setMessage(`Request failed: ${err.message}`);
-      setGlbUrl(`${API_BASE}/static/models/couture_garment_demo.glb`);
+      setMessage(`Request failed: ${err.message}. Showing previous generated model.`);
+      setGlbUrl(`${API_BASE}/static/models/latest_garment.glb`);
     } finally {
       setLoading(false);
     }
@@ -100,7 +105,7 @@ export default function PreviewPage3D({ post, onBack }) {
       {showToken && (
         <div style={{ background: "#111827", borderBottom: "1px solid #1e2a38", padding: "16px 24px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ fontSize: "12px", color: "#94a3b8", flex: "0 0 100%", marginBottom: "6px" }}>
-            🤗 <strong>Hugging Face Token</strong> — Free tier: ~30–50 gens/day (shared pool). HF PRO (\$9/mo): 5–10× more quota.<br />
+            🤗 <strong>Hugging Face Token</strong> — Free tier: ~30–50 gens/day (shared pool). HF PRO ($9/mo): 5–10× more quota.<br />
             Get yours at <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer" style={{ color: "#f59e0b" }}>huggingface.co/settings/tokens</a>
           </div>
           <input
@@ -129,7 +134,7 @@ export default function PreviewPage3D({ post, onBack }) {
               <img
                 src={imageUrl}
                 alt={title}
-                style={{ width: "200px", height: "260px", objectFit: "cover", borderRadius: "12px", border: "1px solid #1e2a38" }}
+                style={{ width: "180px", height: "240px", objectFit: "cover", borderRadius: "12px", border: "1px solid #1e2a38" }}
               />
             </div>
             {glbUrl && (
@@ -138,10 +143,48 @@ export default function PreviewPage3D({ post, onBack }) {
           </div>
         )}
 
+        {/* 3D Model Selector & Engine Switcher */}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "center", maxWidth: "600px" }}>
+          <button
+            onClick={() => setEngine("trellis")}
+            style={{
+              padding: "10px 18px",
+              borderRadius: "10px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              border: engine === "trellis" ? "1px solid #f59e0b" : "1px solid #1e2a38",
+              background: engine === "trellis" ? "rgba(245, 158, 11, 0.15)" : "#111827",
+              color: engine === "trellis" ? "#f59e0b" : "#94a3b8",
+            }}
+          >
+            🧊 Microsoft TRELLIS (Full Color & PBR Texture)
+          </button>
+          <button
+            onClick={() => setEngine("hunyuan3d")}
+            style={{
+              padding: "10px 18px",
+              borderRadius: "10px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              border: engine === "hunyuan3d" ? "1px solid #38bdf8" : "1px solid #1e2a38",
+              background: engine === "hunyuan3d" ? "rgba(56, 189, 248, 0.15)" : "#111827",
+              color: engine === "hunyuan3d" ? "#38bdf8" : "#94a3b8",
+            }}
+          >
+            ⚡ Tencent Hunyuan3D-2 (320k Ultra-Dense Mesh)
+          </button>
+        </div>
+
         {/* 3D Viewer */}
         {glbUrl && (
           <div style={{ width: "100%", maxWidth: "700px" }}>
-            <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "8px", letterSpacing: "1px", textAlign: "center" }}>3D MODEL PREVIEW</div>
+            <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "8px", letterSpacing: "1px", textAlign: "center" }}>
+              3D MODEL PREVIEW · <span style={{ color: "#f59e0b", textTransform: "uppercase" }}>{activeEngine}</span>
+            </div>
             {/* Status badge */}
             <div style={{ textAlign: "center", marginBottom: "12px" }}>
               <span style={{
@@ -162,7 +205,7 @@ export default function PreviewPage3D({ post, onBack }) {
               auto-rotate
               shadow-intensity="1.5"
               environment-image="neutral"
-              exposure="0.8"
+              exposure="0.9"
               style={{
                 width: "100%",
                 height: "480px",
@@ -176,7 +219,7 @@ export default function PreviewPage3D({ post, onBack }) {
             </model-viewer>
 
             {message && (
-              <div style={{ marginTop: "12px", fontSize: "12px", color: "#64748b", textAlign: "center", lineHeight: 1.5 }}>
+              <div style={{ marginTop: "12px", fontSize: "12px", color: "#94a3b8", textAlign: "center", lineHeight: 1.5 }}>
                 {message}
               </div>
             )}
@@ -186,10 +229,10 @@ export default function PreviewPage3D({ post, onBack }) {
               <div style={{ textAlign: "center", marginTop: "16px" }}>
                 <a
                   href={glbUrl}
-                  download="dori_3d_model.glb"
+                  download="dori_3d_couture.glb"
                   style={{ display: "inline-block", background: "#1e2a38", color: "#f5f0e8", padding: "10px 24px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, textDecoration: "none", border: "1px solid #2a3a4a" }}
                 >
-                  ⬇ Download GLB
+                  ⬇ Download 3D Model (.GLB)
                 </a>
               </div>
             )}
@@ -218,37 +261,41 @@ export default function PreviewPage3D({ post, onBack }) {
             {loading ? (
               <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⚙️</span>
-                Generating 3D… (30–60s)
+                Generating with {engine === "hunyuan3d" ? "Hunyuan3D-2" : "TRELLIS"}…
               </span>
-            ) : glbUrl ? "🔄 Regenerate 3D" : "✨ Generate 3D Preview"}
+            ) : glbUrl ? `🔄 Regenerate with ${engine === "hunyuan3d" ? "Hunyuan3D-2" : "TRELLIS"}` : `✨ Generate 3D (${engine === "hunyuan3d" ? "Hunyuan3D-2" : "TRELLIS"})`}
           </button>
           <div style={{ fontSize: "12px", color: "#64748b", marginTop: "10px" }}>
-            Powered by <strong style={{ color: "#f59e0b" }}>Microsoft TRELLIS</strong> via Hugging Face ZeroGPU · Free tier
+            Free tier via Hugging Face ZeroGPU · Powered by <strong style={{ color: "#f59e0b" }}>{engine === "hunyuan3d" ? "Tencent Hunyuan3D-2" : "Microsoft TRELLIS"}</strong>
           </div>
         </div>
 
-        {/* How it works */}
-        {!glbUrl && !loading && (
-          <div style={{ maxWidth: "480px", background: "#111827", borderRadius: "12px", padding: "20px", border: "1px solid #1e2a38" }}>
-            <div style={{ fontSize: "12px", color: "#f59e0b", fontWeight: 700, marginBottom: "12px", letterSpacing: "1px" }}>HOW IT WORKS</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {[
-                ["🖼️", "Background Removed", "TRELLIS extracts your garment from the background"],
-                ["🧊", "3D Mesh Generated", "Microsoft's TRELLIS model builds a detailed 3D mesh"],
-                ["🎨", "Texture Applied", "High-res texture is baked onto the 3D model"],
-                ["🔄", "Interactive Preview", "Rotate, zoom, inspect from any angle"],
-              ].map(([icon, title, desc]) => (
-                <div key={title} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                  <span style={{ fontSize: "18px" }}>{icon}</span>
-                  <div>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#f5f0e8" }}>{title}</div>
-                    <div style={{ fontSize: "12px", color: "#64748b" }}>{desc}</div>
-                  </div>
-                </div>
-              ))}
+        {/* Engine Specs Comparison */}
+        <div style={{ maxWidth: "600px", width: "100%", background: "#111827", borderRadius: "12px", padding: "20px", border: "1px solid #1e2a38" }}>
+          <div style={{ fontSize: "12px", color: "#f59e0b", fontWeight: 700, marginBottom: "12px", letterSpacing: "1px" }}>AVAILABLE 3D ENGINES</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.2)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 700, color: "#f59e0b" }}>
+                <span>🧊 Microsoft TRELLIS (Default)</span>
+                <span>PBR Textures · Color</span>
+              </div>
+              <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
+                Generates full photo-realistic color and fabric texture baked onto a 3D mesh using Structured Latent (SLaT).
+              </div>
+            </div>
+
+            <div style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(56, 189, 248, 0.08)", border: "1px solid rgba(56, 189, 248, 0.2)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 700, color: "#38bdf8" }}>
+                <span>⚡ Tencent Hunyuan3D 2.0</span>
+                <span>320k+ Faces · 5 Seconds</span>
+              </div>
+              <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
+                Extreme-resolution geometric mesh with high polygon density. Ideal for drapery inspection and tailoring structure.
+              </div>
             </div>
           </div>
-        )}
+        </div>
+
       </div>
 
       <style>{`

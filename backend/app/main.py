@@ -303,7 +303,8 @@ async def generate_3d(payload: schemas.ThreeDRequest):
 
     MODELS_DIR = os.path.join(STATIC_DIR, "models")
     os.makedirs(MODELS_DIR, exist_ok=True)
-    DEMO_GLB_URL = "/static/models/couture_garment_demo.glb"
+    latest_dress = os.path.join(MODELS_DIR, "latest_garment.glb")
+    DEMO_GLB_URL = "/static/models/latest_garment.glb" if os.path.exists(latest_dress) else "/static/models/couture_garment_demo.glb"
 
     # ── Download / decode the input image into a temp file ────────────────────
     tmp_dir = tempfile.mkdtemp()
@@ -319,22 +320,69 @@ async def generate_3d(payload: schemas.ThreeDRequest):
                 f.write(base64.b64decode(raw))
         elif payload.image_url:
             url = payload.image_url
-            # Handle relative /static/ URLs → absolute
+            # Handle relative /static/ URLs → read directly from disk
             if url.startswith("/static/"):
-                url = f"http://127.0.0.1:8000{url}"
-            headers = {"User-Agent": "Mozilla/5.0"}
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=30) as resp, open(img_path, "wb") as f:
-                f.write(resp.read())
+                rel_path = url[len("/static/"):].lstrip("/\\")
+                disk_file = os.path.join(STATIC_DIR, rel_path)
+                if os.path.exists(disk_file):
+                    shutil.copy2(disk_file, img_path)
+                else:
+                    url = f"http://127.0.0.1:8000{url}"
+            if not os.path.exists(img_path) or os.path.getsize(img_path) == 0:
+                headers = {"User-Agent": "Mozilla/5.0"}
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=30) as resp, open(img_path, "wb") as f:
+                    f.write(resp.read())
         else:
             raise HTTPException(status_code=400, detail="Provide image_url or image_data")
 
-        # ── Call TRELLIS via gradio_client ──────────────────────────────────
         try:
             from gradio_client import Client, handle_file
         except ImportError:
             raise HTTPException(status_code=500, detail="gradio_client not installed. Run: pip install gradio_client")
 
+        # ── ENGINE 1: Tencent Hunyuan3D 2.0 (High-Speed & Ultra-Dense Mesh) ──
+        if payload.engine == "hunyuan3d":
+            print(f"[Hunyuan3D-2] Connecting to space (token={'set' if hf_token else 'none'})…")
+            h_client = Client("tencent/Hunyuan3D-2", token=hf_token, httpx_kwargs={"timeout": 180.0})
+            print("[Hunyuan3D-2] Generating 3D mesh via /shape_generation…")
+            h_res = h_client.predict(
+                caption=None,
+                image=handle_file(img_path),
+                mv_image_front=None,
+                mv_image_back=None,
+                mv_image_left=None,
+                mv_image_right=None,
+                steps=20,
+                guidance_scale=5.0,
+                seed=1234,
+                octree_resolution=256,
+                check_box_rembg=True,
+                num_chunks=8000,
+                randomize_seed=True,
+                api_name="/shape_generation"
+            )
+            print(f"[Hunyuan3D-2] Result: {h_res}")
+            glb_source = None
+            if isinstance(h_res, (list, tuple)) and len(h_res) > 0:
+                first = h_res[0]
+                if isinstance(first, dict):
+                    glb_source = first.get("value")
+                elif isinstance(first, str):
+                    glb_source = first
+
+            if glb_source and os.path.exists(glb_source):
+                model_id = str(uuid.uuid4())
+                dest_path = os.path.join(MODELS_DIR, f"{model_id}.glb")
+                shutil.copy2(glb_source, dest_path)
+                return schemas.ThreeDResponse(
+                    glb_url=f"/static/models/{model_id}.glb",
+                    engine="hunyuan3d",
+                    status="ready",
+                    message="3D model generated via Tencent Hunyuan3D 2.0 (High-Density Geometry)"
+                )
+
+        # ── ENGINE 2: Microsoft TRELLIS (Default — SLaT Full Texture PBR) ────
         print(f"[TRELLIS] Connecting to space (token={'set' if hf_token else 'none'})…")
         client = Client("trellis-community/TRELLIS", token=hf_token, httpx_kwargs={"timeout": 300.0})
 
@@ -358,7 +406,6 @@ async def generate_3d(payload: schemas.ThreeDRequest):
             preprocessed_image_arg = handle_file(str(preprocess_result))
 
         # Step 3: Generate 3D model
-        # Returns: (video_dict, glb_filepath, download_glb_filepath)
         print("[TRELLIS] Generating 3D GLB (this takes 30-60s)…")
         gen_result = client.predict(
             image=preprocessed_image_arg,

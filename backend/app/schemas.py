@@ -102,3 +102,16 @@ class CaptionResponse(BaseModel):
     tone: str
     model_used: Optional[str] = None
 
+class ThreeDRequest(BaseModel):
+    image_url: Optional[str] = None
+    image_data: Optional[str] = None
+    hf_token: Optional[str] = None
+    engine: Optional[str] = "trellis"
+
+class ThreeDResponse(BaseModel):
+    glb_url: str
+    engine: str
+    status: str
+    message: Optional[str] = None
+
+
