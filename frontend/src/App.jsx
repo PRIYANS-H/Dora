@@ -7,9 +7,11 @@ import BriefPage from './pages/BriefPage';
 import ReceiptPage from './pages/ReceiptPage';
 import TrackerPage from './pages/TrackerPage';
 import TailorPage from './pages/TailorPage';
+import DesignerStudioPage from './pages/DesignerStudioPage';
+import VirtualTryOnPage from './pages/VirtualTryOnPage';
 
 export default function App() {
-  const [currentMode, setCurrentMode] = useState('customer'); // 'customer' | 'tailor'
+  const [currentMode, setCurrentMode] = useState('customer'); // 'customer' | 'tailor' | 'designer_studio' | 'virtual_tryon'
   const [currentStep, setCurrentStep] = useState('feed'); // 'feed' | 'remix' | 'match' | 'brief' | 'receipt' | 'tracker'
 
   // Application State
@@ -56,7 +58,11 @@ export default function App() {
       />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
-        {currentMode === 'tailor' ? (
+        {currentMode === 'virtual_tryon' ? (
+          <VirtualTryOnPage />
+        ) : currentMode === 'designer_studio' ? (
+          <DesignerStudioPage />
+        ) : currentMode === 'tailor' ? (
           <TailorPage />
         ) : (
           <>

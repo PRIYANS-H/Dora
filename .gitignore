@@ -27,7 +27,14 @@ __pycache__/
 # IDE & OS Files
 .vscode/
 .idea/
-.DS_Store
-Thumbs.db
 *.swp
 *.log
+
+# Generated 3D Models and Runtime Upload Media
+backend/static/3d_models/*.glb
+backend/static/3d_models/cache/
+backend/static/uploads/media/*
+backend/static/remixes/*
+!backend/static/uploads/media/.gitkeep
+!backend/static/3d_models/.gitkeep
+

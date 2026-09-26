@@ -1,0 +1,21 @@
+# ========================================================
+# Optional 3D Virtual Try-On Dependencies for DORI
+# ========================================================
+# Note: The core 3D Virtual Try-On pipeline in DORI runs
+# standalone with standard Python + numpy (already included).
+#
+# These optional packages can be installed if you wish to run
+# offline mesh inspections or research SMPL-X models.
+
+# 3D Mesh Inspection & Manipulation (Optional)
+numpy>=1.24.0
+trimesh>=4.0.0
+pygltflib>=1.16.0
+
+# Optional PyTorch for SMPL-X Research Weights (Optional)
+# torch>=2.0.0
+# smplx>=0.1.28
+
+# Optional Blender:
+# Install Blender from https://www.blender.org/download/
+# and set BLENDER_EXECUTABLE=/path/to/blender in .env

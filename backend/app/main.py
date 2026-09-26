@@ -1,5 +1,11 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (override system env)
+load_dotenv(override=True)
+
 from typing import List, Optional, Dict, Any
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +18,24 @@ from app.services.matcher import compute_tailor_match
 from app.services.remix_engine import generate_remixed_image
 from app.seed import seed_database
 
-app = FastAPI(title="DORI Fashion Remix & Tailoring Engine API", version="1.0.0")
+# Import Modular Routers
+from app.routers import media, ai_caption, posts, engagement
+from app.virtual_tryon import router as virtual_tryon_router
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    db = next(get_db())
+    if db.query(Post).count() == 0:
+        seed_database()
+    yield
+
+app = FastAPI(
+    title="DORI Fashion Remix & Tailoring Engine API",
+    version="1.1.0",
+    description="Backend API powering DORI: Designer Social Feed, Media Uploads, AI Captions, Engagement, Remix Studio, and Tailor Matching.",
+    lifespan=lifespan
+)
 
 # Enable CORS for local dev and production builds
 app.add_middleware(
@@ -23,43 +46,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure static directories exist
+# Ensure static upload directories exist and mount static files
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-os.makedirs(STATIC_DIR, exist_ok=True)
+UPLOADS_MEDIA_DIR = os.path.join(STATIC_DIR, "uploads", "media")
+MODELS_3D_DIR = os.path.join(STATIC_DIR, "3d_models")
+os.makedirs(UPLOADS_MEDIA_DIR, exist_ok=True)
+os.makedirs(MODELS_3D_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-@app.on_event("startup")
-def startup_event():
-    init_db()
-    # Auto-seed database on startup if empty
-    db = next(get_db())
-    if db.query(Post).count() == 0:
-        seed_database()
+# Mount Social Feed & Media Routers
+app.include_router(posts.router)
+app.include_router(media.router)
+app.include_router(ai_caption.router)
+app.include_router(engagement.router)
+app.include_router(virtual_tryon_router)
 
-@app.get("/health")
+# ==========================================
+# Core DORI System Endpoints
+# ==========================================
+
+@app.get("/health", tags=["System"])
 def health_check():
     return {"status": "ok", "app": "DORI API", "tagline": "See it. Remix it. Wear it."}
 
-# 1. GET /posts
-@app.get("/posts", response_model=List[schemas.PostResponse])
-def get_posts(db: Session = Depends(get_db)):
-    posts = db.query(Post).all()
-    return posts
-
-# 2. GET /posts/{id}
-@app.get("/posts/{id}", response_model=schemas.PostResponse)
-def get_post(id: str, db: Session = Depends(get_db)):
-    post = db.query(Post).filter(Post.id == id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    return post
-
-# 3. POST /remix
-@app.get("/remixes", response_model=List[schemas.RemixResponse])
+# Remix Endpoints
+@app.get("/remixes", response_model=List[schemas.RemixResponse], tags=["Remix Studio"])
 def get_remixes(db: Session = Depends(get_db)):
     return db.query(Remix).all()
 
-@app.post("/remix", response_model=schemas.RemixResponse)
+@app.post("/remix", response_model=schemas.RemixResponse, tags=["Remix Studio"])
 def create_remix(payload: schemas.RemixCreate, db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == payload.post_id).first()
     if not post:
@@ -83,9 +98,9 @@ def create_remix(payload: schemas.RemixCreate, db: Session = Depends(get_db)):
     db.refresh(remix)
     return remix
 
-# 4. GET /tailors/match
-@app.post("/tailors/match", response_model=List[schemas.TailorMatchResponse])
-@app.get("/tailors/match", response_model=List[schemas.TailorMatchResponse])
+# Tailor Match Endpoints
+@app.post("/tailors/match", response_model=List[schemas.TailorMatchResponse], tags=["Tailor Matching"])
+@app.get("/tailors/match", response_model=List[schemas.TailorMatchResponse], tags=["Tailor Matching"])
 def match_tailors(
     payload: Optional[schemas.TailorMatchRequest] = Body(None),
     attributes_json: Optional[str] = Query(None),
@@ -128,8 +143,8 @@ def match_tailors(
     results.sort(key=lambda x: x.match_score, reverse=True)
     return results[:3]
 
-# 5. POST /orders
-@app.post("/orders", response_model=schemas.OrderResponse)
+# Order Endpoints
+@app.post("/orders", response_model=schemas.OrderResponse, tags=["Orders"])
 def create_order(payload: schemas.OrderCreate, db: Session = Depends(get_db)):
     remix = db.query(Remix).filter(Remix.id == payload.remix_id).first()
     if not remix:
@@ -166,8 +181,7 @@ def create_order(payload: schemas.OrderCreate, db: Session = Depends(get_db)):
         post={"id": post.id, "title": post.title, "designer_name": post.designer_name, "price_reference": post.price_reference} if post else None
     )
 
-# 6. GET /orders
-@app.get("/orders", response_model=List[schemas.OrderResponse])
+@app.get("/orders", response_model=List[schemas.OrderResponse], tags=["Orders"])
 def get_orders(db: Session = Depends(get_db)):
     orders = db.query(Order).order_by(Order.created_at.desc()).all()
     results = []
@@ -189,8 +203,7 @@ def get_orders(db: Session = Depends(get_db)):
         ))
     return results
 
-# 7. GET /orders/{id}
-@app.get("/orders/{id}", response_model=schemas.OrderResponse)
+@app.get("/orders/{id}", response_model=schemas.OrderResponse, tags=["Orders"])
 def get_order(id: str, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == id).first()
     if not order:
@@ -213,8 +226,7 @@ def get_order(id: str, db: Session = Depends(get_db)):
         post={"id": post.id, "title": post.title, "designer_name": post.designer_name, "price_reference": post.price_reference} if post else None
     )
 
-# 8. PATCH /orders/{id}/status
-@app.patch("/orders/{id}/status", response_model=schemas.OrderResponse)
+@app.patch("/orders/{id}/status", response_model=schemas.OrderResponse, tags=["Orders"])
 def update_order_status(id: str, payload: schemas.OrderStatusUpdate, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == id).first()
     if not order:
@@ -229,8 +241,7 @@ def update_order_status(id: str, payload: schemas.OrderStatusUpdate, db: Session
     db.refresh(order)
     return get_order(id, db)
 
-# 9. GET /orders/{id}/receipt
-@app.get("/orders/{id}/receipt", response_model=schemas.RoyaltyReceiptResponse)
+@app.get("/orders/{id}/receipt", response_model=schemas.RoyaltyReceiptResponse, tags=["Orders"])
 def get_order_receipt(id: str, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == id).first()
     if not order:
