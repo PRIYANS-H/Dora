@@ -15,6 +15,7 @@ import TailorPage from './pages/TailorPage';
 import SettingsPage from './pages/SettingsPage';
 import DiscoverPage from './pages/DiscoverPage';
 import CreatePostPage from './pages/CreatePostPage';
+import PreviewPage3D from './pages/PreviewPage3D';
 
 export default function App() {
   const publicProfile = window.location.pathname.match(/^\/profile\/([^/]+)\/?$/);
@@ -78,6 +79,7 @@ export default function App() {
   const [currentAttributes, setCurrentAttributes] = useState(null);
   const [selectedTailor, setSelectedTailor] = useState(null);
   const [currentOrder, setCurrentOrder] = useState(null);
+  const [returnStep, setReturnStep] = useState('feed');
 
   if (publicProfile) {
     return <ProfilePage username={decodeURIComponent(publicProfile[1])} />;
@@ -100,10 +102,15 @@ export default function App() {
     window.location.href = '/app/';
   };
 
-  // Step Nav Handlers
   const handleSelectPost = (post) => {
     setSelectedPost(post);
     setCurrentStep('remix');
+  };
+
+  const handle3DPreview = (post, from = 'feed') => {
+    setSelectedPost(post);
+    setReturnStep(from);
+    setCurrentStep('preview3d');
   };
 
   const handleProceedToMatch = (remix, attributes) => {
@@ -134,7 +141,7 @@ export default function App() {
         ) : (
           <>
             {currentStep === 'feed' && (
-              <FeedPage onSelectPost={handleSelectPost} />
+              <FeedPage onSelectPost={handleSelectPost} on3DPreview={handle3DPreview} />
             )}
 
             {currentStep === 'discover' && <DiscoverPage />}
@@ -143,12 +150,20 @@ export default function App() {
 
             {currentStep === 'settings' && <SettingsPage session={session} profile={profile} onSaved={setProfile} />}
 
-            {currentStep === 'create' && profile.is_professional && <CreatePostPage profile={profile} onPosted={() => handleStepClick('feed')} />}
+            {currentStep === 'create' && <CreatePostPage profile={profile} onPosted={() => handleStepClick('feed')} />}
+
+            {currentStep === 'preview3d' && (
+              <PreviewPage3D
+                post={selectedPost}
+                onBack={() => setCurrentStep(returnStep)}
+              />
+            )}
 
             {currentStep === 'remix' && (
               <RemixPage
                 post={selectedPost}
                 onProceedToMatch={handleProceedToMatch}
+                on3DPreview={(p) => handle3DPreview(p, 'remix')}
               />
             )}
 

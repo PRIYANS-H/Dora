@@ -7,7 +7,7 @@ class PostBase(BaseModel):
     designer_handle: str
     image_url: str
     title: str
-    base_attributes: Dict[str, str]
+    base_attributes: Dict[str, Any]
     price_reference: int
 
 class PostResponse(PostBase):
@@ -89,3 +89,30 @@ class RoyaltyReceiptResponse(BaseModel):
     designer_share_pct: int = 15
     tailor_share_pct: int = 70
     platform_share_pct: int = 15
+
+class CaptionRequest(BaseModel):
+    tone: Optional[str] = "Creative"
+    title: Optional[str] = ""
+    image_url: Optional[str] = None
+    image_data: Optional[str] = None
+    api_key: Optional[str] = None
+
+class CaptionResponse(BaseModel):
+    caption: str
+    tone: str
+    model_used: Optional[str] = None
+
+class ThreeDRequest(BaseModel):
+    image_url: Optional[str] = None
+    image_data: Optional[str] = None
+    hf_token: Optional[str] = None
+    engine: Optional[str] = "trellis"
+
+class ThreeDResponse(BaseModel):
+    glb_url: str
+    engine: str
+    status: str
+    message: Optional[str] = None
+    video_url: Optional[str] = None
+
+

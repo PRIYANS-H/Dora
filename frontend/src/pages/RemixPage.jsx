@@ -11,7 +11,7 @@ const CATEGORIES = {
   fit: ['regular', 'relaxed', 'oversized', 'slim', 'bodycon', 'tailored', 'draped', 'flared']
 };
 
-export default function RemixPage({ post, onProceedToMatch }) {
+export default function RemixPage({ post, onProceedToMatch, on3DPreview }) {
   const [selectedAttributes, setSelectedAttributes] = useState({});
   const [remixedImageUrl, setRemixedImageUrl] = useState('');
   const [remixObject, setRemixObject] = useState(null);
@@ -19,12 +19,16 @@ export default function RemixPage({ post, onProceedToMatch }) {
 
   useEffect(() => {
     if (post) {
-      setSelectedAttributes(post.base_attributes || {
+      const defaultAttrs = {
         neckline: 'mandarin',
         sleeves: 'full',
         fabric: 'heavy cotton twill',
         color: 'onyx',
-        fit: 'regular'
+        fit: 'regular',
+      };
+      setSelectedAttributes({
+        ...defaultAttrs,
+        ...(post.base_attributes || {}),
       });
       setRemixedImageUrl(post.image_url);
       setRemixObject(null);
@@ -133,13 +137,27 @@ export default function RemixPage({ post, onProceedToMatch }) {
             <button
               onClick={handleMakeThis}
               disabled={isGenerating}
-              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500  font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 hover:scale-[1.02] transition-all disabled:opacity-50 cursor-pointer"
+              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 hover:scale-[1.02] transition-all disabled:opacity-50 cursor-pointer text-gray-950"
             >
               <Sparkles className="w-4 h-4 fill-gray-950 stroke-none" />
               MAKE THIS (Match Tailor)
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
+
+          {on3DPreview && (
+            <button
+              onClick={() => on3DPreview({
+                ...post,
+                image_url: remixedImageUrl || post.image_url,
+                title: `${post.title} (Custom Remix)`
+              })}
+              className="w-full py-2.5 rounded-xl bg-gray-900/90 hover:bg-amber-400/10 text-amber-400 hover:text-amber-300 border border-amber-400/30 hover:border-amber-400/60 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer mt-1"
+            >
+              <span>🧊</span>
+              View Garment in 3D Studio (Rotate & Inspect)
+            </button>
+          )}
         </div>
 
         {/* Right Column: Tactile Attribute Chips */}
