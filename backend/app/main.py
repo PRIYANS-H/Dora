@@ -1,12 +1,13 @@
 import os
 import uuid
+import base64
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -27,9 +28,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files for remixed images
+# Static files for remixed images and uploaded media
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-os.makedirs(STATIC_DIR, exist_ok=True)
+UPLOAD_DIR = os.path.join(STATIC_DIR, "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(auth_router)
@@ -46,6 +48,12 @@ def startup_event():
         except Exception as storage_error:
             if "already exists" not in str(storage_error).lower() and "duplicate" not in str(storage_error).lower():
                 print(f"[DORI] Avatar bucket setup skipped: {storage_error}")
+        try:
+            sb.storage.create_bucket("posts", options={"public": True})
+            print("[DORI] Created Supabase posts bucket.")
+        except Exception as storage_error:
+            if "already exists" not in str(storage_error).lower() and "duplicate" not in str(storage_error).lower():
+                print(f"[DORI] Posts bucket setup skipped: {storage_error}")
         result = sb.table("posts").select("id", count="exact").limit(1).execute()
         count = result.count if result.count is not None else len(result.data or [])
         if count == 0:
@@ -63,13 +71,205 @@ def health_check():
     return {"status": "ok", "app": "DORI API", "tagline": "See it. Remix it. Wear it.", "db": "Supabase Postgres"}
 
 
-# ── 1. GET /posts ──────────────────────────────────────────────────────────────
+# ── 1. GET /posts & POST /posts ────────────────────────────────────────────────
 
 @app.get("/posts", response_model=List[schemas.PostResponse])
 def get_posts():
     sb = get_supabase()
-    result = sb.table("posts").select("*").order("created_at", desc=False).execute()
+    result = sb.table("posts").select("*").order("created_at", desc=True).execute()
     return result.data or []
+
+
+@app.post("/posts", response_model=schemas.PostResponse)
+def create_post(payload: schemas.PostBase):
+    sb = get_supabase()
+    post_id = f"post-{uuid.uuid4().hex[:8]}"
+    post_row = {
+        "id": post_id,
+        "title": payload.title,
+        "image_url": payload.image_url,
+        "designer_name": payload.designer_name,
+        "designer_handle": payload.designer_handle,
+        "base_attributes": payload.base_attributes,
+        "price_reference": payload.price_reference,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    insert_res = sb.table("posts").insert(post_row).execute()
+    if not insert_res.data:
+        raise HTTPException(status_code=500, detail="Failed to create post")
+    return insert_res.data[0]
+
+
+# ── POST /upload ──────────────────────────────────────────────────────────────
+
+@app.post("/upload")
+@app.post("/posts/upload")
+async def upload_image(file: UploadFile = File(...)):
+    """Upload an image file and return its public or static URL."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be an image.")
+
+    contents = await file.read()
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if not ext or ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+        ext = ".jpg"
+    filename = f"{uuid.uuid4()}{ext}"
+    content_type = file.content_type or "image/jpeg"
+
+    # 1. Try uploading to Supabase Storage if configured
+    try:
+        sb = get_supabase()
+        for bucket in ["posts", "avatars"]:
+            try:
+                storage_path = f"uploads/{filename}" if bucket == "avatars" else filename
+                sb.storage.from_(bucket).upload(
+                    path=storage_path,
+                    file=contents,
+                    file_options={"content-type": content_type}
+                )
+                public_url = sb.storage.from_(bucket).get_public_url(storage_path)
+                return {"url": public_url, "image_url": public_url}
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    # 2. Local static storage fallback (served at /static/uploads/...)
+    local_path = os.path.join(UPLOAD_DIR, filename)
+    with open(local_path, "wb") as f:
+        f.write(contents)
+
+    url = f"/static/uploads/{filename}"
+    return {"url": url, "image_url": url}
+
+
+# ── AI Caption Generation with Gemini Vision ────────────────────────────────────
+
+@app.get("/ai/status")
+def get_ai_status():
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+    if os.path.exists(env_path):
+        load_dotenv(env_path, override=True)
+    key = os.getenv("GEMINI_API_KEY", "").strip()
+    return {
+        "configured": bool(key),
+        "key_prefix": (key[:6] + "...") if len(key) > 6 else ("configured" if key else ""),
+    }
+
+
+@app.post("/ai/generate-caption", response_model=schemas.CaptionResponse)
+@app.post("/posts/generate-caption", response_model=schemas.CaptionResponse)
+def generate_ai_caption(payload: schemas.CaptionRequest):
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+    if os.path.exists(env_path):
+        load_dotenv(env_path, override=True)
+    
+    gemini_key = (payload.api_key or "").strip() or os.getenv("GEMINI_API_KEY", "").strip()
+    if not gemini_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Gemini API key is required. Please set GEMINI_API_KEY in backend/.env or enter it in the AI Caption settings.",
+        )
+
+    image_bytes = None
+    mime_type = "image/jpeg"
+
+    if payload.image_data:
+        try:
+            if "," in payload.image_data:
+                header, encoded = payload.image_data.split(",", 1)
+                if ":" in header and ";" in header:
+                    mime_type = header.split(":")[1].split(";")[0]
+            else:
+                encoded = payload.image_data
+            image_bytes = base64.b64decode(encoded)
+        except Exception as e:
+            print(f"[GeminiCaption] Base64 decode error: {e}")
+
+    elif payload.image_url:
+        try:
+            if payload.image_url.startswith("/static/"):
+                rel_path = payload.image_url.replace("/static/", "", 1)
+                disk_path = os.path.join(STATIC_DIR, rel_path)
+                if os.path.exists(disk_path):
+                    with open(disk_path, "rb") as f:
+                        image_bytes = f.read()
+                    if disk_path.lower().endswith(".png"):
+                        mime_type = "image/png"
+                    elif disk_path.lower().endswith(".webp"):
+                        mime_type = "image/webp"
+            elif payload.image_url.startswith("http"):
+                import requests
+                resp = requests.get(payload.image_url, timeout=10)
+                if resp.status_code == 200:
+                    image_bytes = resp.content
+                    ct = resp.headers.get("Content-Type", "")
+                    if ct:
+                        mime_type = ct.split(";")[0]
+        except Exception as e:
+            print(f"[GeminiCaption] Failed to fetch image_url: {e}")
+
+    tone_descriptors = {
+        "Creative": "Evocative, poetic, avant-garde and artistic haute couture narrative",
+        "Luxury": "Atelier couture elegance, bespoke tailoring, opulent luxury, and sophisticated refinement",
+        "Streetwear": "Edgy, bold, urban contemporary, culture-defining aesthetic, and unapologetic grit",
+        "Minimal": "Understated, crisp, architectural lines, purity of form, and refined restraint",
+        "Editorial": "Structured, dramatic, high-fashion runway critique, and visionary magazine styling",
+        "Casual": "Effortless everyday, approachable chic, breezy elegance, and versatile wardrobe notes",
+    }
+    tone_name = payload.tone or "Creative"
+    tone_desc = tone_descriptors.get(tone_name, "High-fashion couture aesthetic")
+
+    prompt = (
+        f"You are an elite fashion designer and couture editor for DORI Fashion House.\n"
+        f"Analyze this garment / piece (Design Title: '{payload.title or 'Atelier Silhouette'}') "
+        f"and craft a captivating, authentic social fashion post caption in a {tone_name} aesthetic ({tone_desc}).\n\n"
+        f"Style Guidelines:\n"
+        f"- Describe the silhouette, fabric drapery, tailoring details, texture, and mood.\n"
+        f"- Keep it evocative, concise (around 50 to 90 words), and engaging for fashion enthusiasts.\n"
+        f"- Conclude with 3 to 4 curated high-fashion hashtags (e.g. #DORICouture #{tone_name}Fashion #AtelierDesign).\n"
+        f"- Return ONLY the raw caption text without introductory notes or surrounding markdown code blocks."
+    )
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=gemini_key)
+        contents = []
+        if image_bytes:
+            contents.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
+        contents.append(prompt)
+
+        model_name = "gemini-2.5-flash"
+        try:
+            res = client.models.generate_content(
+                model=model_name,
+                contents=contents,
+            )
+            caption_text = res.text.strip()
+        except Exception as primary_err:
+            print(f"[GeminiCaption] gemini-2.5-flash error, falling back to gemini-1.5-flash: {primary_err}")
+            model_name = "gemini-1.5-flash"
+            res = client.models.generate_content(
+                model=model_name,
+                contents=contents,
+            )
+            caption_text = res.text.strip()
+
+        return schemas.CaptionResponse(
+            caption=caption_text,
+            tone=tone_name,
+            model_used=model_name
+        )
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[GeminiCaption] Error calling Gemini: {error_msg}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Gemini API error: {error_msg}"
+        )
+
 
 
 # ── 2. GET /posts/{id} ─────────────────────────────────────────────────────────

@@ -143,7 +143,7 @@ export default function App() {
 
             {currentStep === 'settings' && <SettingsPage session={session} profile={profile} onSaved={setProfile} />}
 
-            {currentStep === 'create' && profile.is_professional && <CreatePostPage profile={profile} onPosted={() => handleStepClick('feed')} />}
+            {currentStep === 'create' && <CreatePostPage profile={profile} onPosted={() => handleStepClick('feed')} />}
 
             {currentStep === 'remix' && (
               <RemixPage

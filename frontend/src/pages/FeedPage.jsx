@@ -96,13 +96,24 @@ export default function FeedPage({ onSelectPost }) {
             className="group lp-glass-panel rounded-2xl overflow-hidden border border-white/20/80 cursor-pointer lp-glass-panel-hover flex flex-col justify-between"
           >
             <div>
-              {/* Image Container */}
+              {/* Image / Video Container */}
               <div className="relative h-72 w-full overflow-hidden lp-glass-input">
-                <img
-                  src={post.image_url}
-                  alt={post.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
+                {post.image_url?.endsWith('.mp4') || post.base_attributes?.media_type === 'video' ? (
+                  <video
+                    src={post.image_url}
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <img
+                    src={post.image_url}
+                    alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                )}
                 <div className="absolute top-3 left-3 lp-glass-input/80 backdrop-blur px-3 py-1 rounded-full border border-white/20 text-[11px] font-semibold text-gray-200">
                   {post.designer_name}
                 </div>
@@ -125,16 +136,26 @@ export default function FeedPage({ onSelectPost }) {
                   {post.designer_handle}
                 </p>
 
+                {/* AI / Designer Caption */}
+                {post.base_attributes?.description && (
+                  <p className="text-xs text-gray-300 line-clamp-3 leading-relaxed">
+                    {post.base_attributes.description}
+                  </p>
+                )}
+
                 {/* Base Attribute Badges */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {Object.entries(post.base_attributes || {}).slice(0, 4).map(([k, v]) => (
-                    <span
-                      key={k}
-                      className="px-2 py-0.5 rounded-md bg-gray-900 border border-white/20 text-[10px] text-gray-300 font-mono capitalize"
-                    >
-                      {k}: {v}
-                    </span>
-                  ))}
+                  {Object.entries(post.base_attributes || {})
+                    .filter(([k]) => k !== 'description' && k !== 'media_type')
+                    .slice(0, 4)
+                    .map(([k, v]) => (
+                      <span
+                        key={k}
+                        className="px-2 py-0.5 rounded-md bg-gray-900 border border-white/20 text-[10px] text-gray-300 font-mono capitalize"
+                      >
+                        {k}: {v}
+                      </span>
+                    ))}
                 </div>
               </div>
             </div>

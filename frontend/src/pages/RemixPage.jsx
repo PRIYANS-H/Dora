@@ -19,12 +19,16 @@ export default function RemixPage({ post, onProceedToMatch }) {
 
   useEffect(() => {
     if (post) {
-      setSelectedAttributes(post.base_attributes || {
+      const defaultAttrs = {
         neckline: 'mandarin',
         sleeves: 'full',
         fabric: 'heavy cotton twill',
         color: 'onyx',
-        fit: 'regular'
+        fit: 'regular',
+      };
+      setSelectedAttributes({
+        ...defaultAttrs,
+        ...(post.base_attributes || {}),
       });
       setRemixedImageUrl(post.image_url);
       setRemixObject(null);
