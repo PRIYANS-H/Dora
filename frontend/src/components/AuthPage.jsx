@@ -4,16 +4,7 @@ import { customSignUp, customSignIn, customVerify, setCustomSession } from '../a
 
 export default function AuthPage({ onLoginSuccess }) {
   const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState(() => {
-    try {
-      const p = sessionStorage.getItem('prefill_email');
-      if (p) {
-        sessionStorage.removeItem('prefill_email');
-        return p;
-      }
-    } catch {}
-    return '';
-  });
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otp, setOtp] = useState('');

@@ -1,4 +1,4 @@
-export const API_BASE = '/api/auth';
+export const API_BASE = 'http://localhost:8000/auth';
 
 export async function customSignUp(email, password) {
   const res = await fetch(`${API_BASE}/signup`, {

@@ -149,34 +149,3 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
-
-/* AI Studio styling */
-.ai-studio-banner {
-  background: linear-gradient(135deg, rgba(42, 17, 72, 0.55) 0%, rgba(15, 23, 42, 0.75) 50%, rgba(9, 13, 22, 0.9) 100%);
-  border: 1px solid rgba(168, 85, 247, 0.25);
-  backdrop-filter: blur(16px);
-}
-.ai-studio-card {
-  background: rgba(10, 15, 26, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px);
-}
-.ai-studio-dropzone {
-  border: 2px dashed rgba(255, 255, 255, 0.16);
-  background: rgba(5, 8, 16, 0.45);
-  transition: all 0.2s ease;
-}
-.ai-studio-dropzone:hover, .ai-studio-dropzone.dragging {
-  border-color: rgba(234, 179, 8, 0.6);
-  background: rgba(234, 179, 8, 0.05);
-}
-.ai-tone-btn {
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.ai-tone-btn.selected {
-  background: #9333ea !important;
-  border-color: #c084fc !important;
-  color: #fff !important;
-  box-shadow: 0 4px 20px -2px rgba(147, 51, 234, 0.5);
-}
-

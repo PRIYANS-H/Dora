@@ -52,8 +52,6 @@ def generate_remixed_image(post_id: str, base_image_url: str, base_attributes: d
     diff_prompt = build_diff_prompt(base_attributes, new_attributes)
 
     # Check for Gemini API key for live generation if available
-    from dotenv import load_dotenv
-    load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"), override=True)
     gemini_key = os.getenv("GEMINI_API_KEY")
     if gemini_key:
         try:
