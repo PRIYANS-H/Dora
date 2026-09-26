@@ -281,7 +281,7 @@ def threed_status():
         from gradio_client import Client
         load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"), override=True)
         hf_token = os.getenv("HF_TOKEN") or None
-        client = Client("trellis-community/TRELLIS", hf_token=hf_token)
+        client = Client("trellis-community/TRELLIS", token=hf_token)
         return {"status": "reachable", "space": "trellis-community/TRELLIS", "hf_token_set": bool(hf_token)}
     except Exception as e:
         return {"status": "unreachable", "error": str(e), "space": "trellis-community/TRELLIS"}
@@ -335,8 +335,8 @@ async def generate_3d(payload: schemas.ThreeDRequest):
         except ImportError:
             raise HTTPException(status_code=500, detail="gradio_client not installed. Run: pip install gradio_client")
 
-        print(f"[TRELLIS] Connecting to space (hf_token={'set' if hf_token else 'none'})…")
-        client = Client("trellis-community/TRELLIS", hf_token=hf_token)
+        print(f"[TRELLIS] Connecting to space (token={'set' if hf_token else 'none'})…")
+        client = Client("trellis-community/TRELLIS", token=hf_token)
 
         # Step 1: Start session
         print("[TRELLIS] Starting session…")
