@@ -23,6 +23,46 @@ function PoseOverlay({ landmarks, width, height }) {
   </svg>;
 }
 
+// Draws the labeled green measuring lines (height / shoulder / waist / hip) that overlay
+// the live camera feed or captured photo, similar to an AR tape-measure.
+function MeasurementOverlay({ metrics, width, height, unit }) {
+  if (!metrics || !width || !height) return null;
+  const factor = unit === 'in' ? 1 / 2.54 : 1;
+  const suffix = unit === 'in' ? '"' : ' cm';
+  const fmt = (cm) => `${Math.round(cm * factor * 10) / 10}${suffix}`;
+  const { pixels, cm } = metrics;
+  const fontSize = Math.max(width, height) * 0.024;
+  return (
+    <svg className="dori-measure-overlay" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      {/* Height: vertical line from head to feet */}
+      <line className="dori-measure-line" x1={pixels.centerX} y1={pixels.top} x2={pixels.centerX} y2={pixels.bottom} />
+      <line className="dori-measure-tick" x1={pixels.centerX - 14} y1={pixels.top} x2={pixels.centerX + 14} y2={pixels.top} />
+      <line className="dori-measure-tick" x1={pixels.centerX - 14} y1={pixels.bottom} x2={pixels.centerX + 14} y2={pixels.bottom} />
+      <text className="dori-measure-label" x={pixels.centerX + 20} y={(pixels.top + pixels.bottom) / 2} fontSize={fontSize}>
+        Height: {fmt(cm.height)}
+      </text>
+
+      {/* Shoulder width */}
+      <line className="dori-measure-line" x1={pixels.shoulderX1} y1={pixels.shoulderY} x2={pixels.shoulderX2} y2={pixels.shoulderY} />
+      <text className="dori-measure-label" x={(pixels.shoulderX1 + pixels.shoulderX2) / 2} y={pixels.shoulderY - 10} fontSize={fontSize} textAnchor="middle">
+        Shoulder: {fmt(cm.shoulder)}
+      </text>
+
+      {/* Waist width */}
+      <line className="dori-measure-line" x1={pixels.centerX - pixels.waistHalfWidth} y1={pixels.waistY} x2={pixels.centerX + pixels.waistHalfWidth} y2={pixels.waistY} />
+      <text className="dori-measure-label" x={pixels.centerX + pixels.waistHalfWidth + 8} y={pixels.waistY} fontSize={fontSize}>
+        Waist: {fmt(cm.waist)}
+      </text>
+
+      {/* Hip width */}
+      <line className="dori-measure-line" x1={pixels.hipX1} y1={pixels.hipY} x2={pixels.hipX2} y2={pixels.hipY} />
+      <text className="dori-measure-label" x={(pixels.hipX1 + pixels.hipX2) / 2} y={pixels.hipY + fontSize + 4} fontSize={fontSize} textAnchor="middle">
+        Hip: {fmt(cm.hip)}
+      </text>
+    </svg>
+  );
+}
+
 let visionPromise;
 let landmarkerPromise;
 
@@ -53,7 +93,10 @@ function distance(a, b, width, height) {
 
 function midpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, visibility: Math.min(a.visibility ?? 1, b.visibility ?? 1) }; }
 
-function estimateMeasurements(points, width, height, knownHeightCm, fields, unit) {
+// Shared geometry: figures out the pixel positions for the height/shoulder/waist/hip
+// lines and converts them to real-world centimeters using the person's stated height
+// as the calibration reference (a single camera can't recover absolute scale on its own).
+function computeBodyMetrics(points, width, height, knownHeightCm) {
   const shoulderWidth = distance(points[11], points[12], width, height);
   const hipWidth = distance(points[23], points[24], width, height);
   const shoulders = midpoint(points[11], points[12]);
@@ -61,27 +104,48 @@ function estimateMeasurements(points, width, height, knownHeightCm, fields, unit
   const ankles = midpoint(points[27], points[28]);
   const visibleHead = [points[0], points[7], points[8]].filter((p) => p && (p.visibility ?? 1) >= 0.35);
   const visibleFeet = [points[31], points[32], points[27], points[28]].filter((p) => p && (p.visibility ?? 1) >= 0.35);
-  if (!shoulderWidth || !hipWidth || !visibleHead.length || !visibleFeet.length) throw new Error('Keep your shoulders, hips, head, and ankles visible in the frame.');
+  if (!shoulderWidth || !hipWidth || !visibleHead.length || !visibleFeet.length) return null;
   const top = Math.min(...visibleHead.map((p) => p.y * height));
   const bottom = Math.max(...visibleFeet.map((p) => p.y * height));
-  if (bottom <= top) throw new Error('Could not find a full-body pose. Retake the photo with your full body visible.');
+  if (bottom <= top) return null;
   const cmPerPixel = knownHeightCm / (bottom - top);
+  const waistWidthPx = (shoulderWidth * 0.72 + hipWidth * 0.78) / 2;
+  const shoulderY = shoulders.y * height;
+  const hipY = hips.y * height;
+  const waistY = shoulderY + (hipY - shoulderY) * 0.62;
+  return {
+    points, width, height, shoulders, hips, ankles, shoulderWidth, hipWidth, cmPerPixel,
+    pixels: {
+      top, bottom,
+      centerX: (shoulders.x * width + hips.x * width) / 2,
+      shoulderY, shoulderX1: points[11].x * width, shoulderX2: points[12].x * width,
+      hipY, hipX1: points[23].x * width, hipX2: points[24].x * width,
+      waistY, waistHalfWidth: Math.max(waistWidthPx, shoulderWidth * 0.5) / 2,
+    },
+    cm: {
+      height: knownHeightCm,
+      shoulder: shoulderWidth * cmPerPixel,
+      chest: shoulderWidth * cmPerPixel * 2.35,
+      waist: waistWidthPx * cmPerPixel * 2.25,
+      hip: hipWidth * cmPerPixel * 2.35,
+    },
+  };
+}
+
+function estimateMeasurements(metrics, fields, unit) {
+  const { points, width, height, shoulders, hips, ankles, cmPerPixel, cm: base } = metrics;
   const cm = {
-    height: knownHeightCm,
-    shoulder: shoulderWidth * cmPerPixel,
+    ...base,
     sleeve: (distance(points[11], points[13], width, height) + distance(points[13], points[15], width, height) + distance(points[12], points[14], width, height) + distance(points[14], points[16], width, height)) * 0.5 * cmPerPixel,
     half_length: distance(shoulders, hips, width, height) * cmPerPixel,
     shirt_length: distance(shoulders, hips, width, height) * cmPerPixel,
-    full_length: knownHeightCm,
+    full_length: base.height,
     length: distance(shoulders, hips, width, height) * cmPerPixel,
     inseam: Math.max(0, (ankles.y - hips.y) * height * cmPerPixel * 0.82),
     outseam: Math.max(0, (ankles.y - hips.y) * height * cmPerPixel),
     leg_length: Math.max(0, (ankles.y - hips.y) * height * cmPerPixel),
-    chest: shoulderWidth * cmPerPixel * 2.35,
-    bust: shoulderWidth * cmPerPixel * 2.35,
-    chest_or_bust: shoulderWidth * cmPerPixel * 2.35,
-    waist: ((shoulderWidth * 0.72 + hipWidth * 0.78) / 2) * cmPerPixel * 2.25,
-    hip: hipWidth * cmPerPixel * 2.35,
+    bust: base.chest,
+    chest_or_bust: base.chest,
   };
   const factor = unit === 'in' ? 1 / 2.54 : 1;
   return Object.fromEntries(fields.map(([key]) => [key, cm[key] ? String(Math.round(cm[key] * factor * 10) / 10) : '']));
@@ -106,8 +170,18 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('Enter your height, then choose a camera or full-body photo.');
+  const [modelLoading, setModelLoading] = useState(false);
   const [review, setReview] = useState(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Recomputes live every time the pose, frame size, or the height calibration input
+  // changes — this is what drives the green measuring lines and their labels.
+  const liveMetrics = useMemo(() => {
+    if (!landmarks || !dimensions.width) return null;
+    const heightCm = Number(knownHeight);
+    if (!Number.isFinite(heightCm) || heightCm < 80 || heightCm > 250) return null;
+    return computeBodyMetrics(landmarks, dimensions.width, dimensions.height, heightCm);
+  }, [landmarks, dimensions, knownHeight]);
 
   const releaseCamera = useCallback(() => {
     cancelAnimationFrame(frameRef.current);
@@ -127,11 +201,12 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
     setLandmarks(points);
     setDimensions({ width, height });
     setError('');
-    setStatus('Pose found. Check that your whole body is visible, then capture for review.');
+    setStatus('Pose found — check the green measurement lines, then capture for review.');
   }, []);
 
   const startCamera = async () => {
     setError(''); setReview(null); setPhoto(null); setSource('camera');
+    setStatus('Starting your camera…');
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access needs a secure connection (HTTPS or localhost).');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', aspectRatio: { ideal: 0.5625 }, width: { ideal: 720 }, height: { ideal: 1280 } } });
@@ -139,7 +214,10 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
       const video = videoRef.current;
       video.srcObject = stream;
       await video.play();
+      setModelLoading(true);
+      setStatus('Loading the pose model (first time may take a few seconds)…');
       const task = await getLandmarker('VIDEO');
+      setModelLoading(false);
       setCameraReady(true);
       setStatus('Stand facing the camera with your full body visible. Hold your arms close to your sides for automatic capture, or capture manually.');
       let lastFrame = 0;
@@ -170,7 +248,8 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
       frameRef.current = requestAnimationFrame(detect);
     } catch (cause) {
       releaseCamera();
-      setError(cause.name === 'NotAllowedError' ? 'Allow camera access in your browser, or upload a photo instead.' : cause.message || 'Could not start the camera.');
+      setModelLoading(false);
+      setError(cause.name === 'NotAllowedError' ? 'Allow camera access in your browser, or upload a photo instead.' : cause.message || 'Could not start the camera. Check your internet connection — the pose model loads from a CDN the first time.');
       setSource('');
     }
   };
@@ -181,16 +260,19 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
     if (!file.type.startsWith('image/')) { setError('Choose an image file.'); return; }
     if (file.size > 12 * 1024 * 1024) { setError('Choose an image smaller than 12 MB.'); return; }
     releaseCamera(); setError(''); setReview(null); setBusy(true); setSource('photo');
+    setStatus('Analyzing your photo…');
     if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
     const url = URL.createObjectURL(file); imageUrlRef.current = url;
     const image = new Image();
     image.onload = async () => {
       try {
+        setModelLoading(true);
         const task = await getLandmarker('IMAGE');
+        setModelLoading(false);
         const points = task.detect(image).landmarks?.[0];
         if (!points?.length) throw new Error('No full-body pose found. Try a clear front-facing photo with your whole body visible.');
         setPhoto(url); analyze(points, image.naturalWidth, image.naturalHeight);
-      } catch (cause) { setError(cause.message || 'Could not analyze this photo.'); }
+      } catch (cause) { setModelLoading(false); setError(cause.message || 'Could not analyze this photo.'); }
       finally { setBusy(false); }
     };
     image.onerror = () => { setBusy(false); setError('Could not open that photo.'); };
@@ -201,8 +283,9 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
     if (!landmarks || !dimensions.width) return setError('Wait for the pose guide to detect your full body.');
     const heightCm = Number(knownHeight);
     if (!Number.isFinite(heightCm) || heightCm < 80 || heightCm > 250) return setError('Enter your height between 80 and 250 cm to calibrate the estimates.');
+    if (!liveMetrics) return setError('Keep your shoulders, hips, head, and ankles visible in the frame.');
     try {
-      const estimates = estimateMeasurements(landmarks, dimensions.width, dimensions.height, heightCm, fields, unit);
+      const estimates = estimateMeasurements(liveMetrics, fields, unit);
       if (source === 'camera' && videoRef.current?.videoWidth) {
         const canvas = document.createElement('canvas');
         canvas.width = videoRef.current.videoWidth; canvas.height = videoRef.current.videoHeight;
@@ -229,13 +312,15 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
       <div className="measurement-capture-body">
         {!review && <>
           <label className="measurement-height-input">Your height (cm)<input type="number" min="80" max="250" step="0.5" value={knownHeight} onChange={(event) => setKnownHeight(event.target.value)} /></label>
-          <p className="measurement-capture-status" role="status">{busy && <LoaderCircle className="w-4 h-4 animate-spin" />}{status}</p>
+          <p className="measurement-capture-status" role="status">{(busy || modelLoading) && <LoaderCircle className="w-4 h-4 animate-spin" />}{status}</p>
           {(source === 'camera' || source === 'photo') && <div className={`measurement-pose-stage ${source === 'camera' ? 'measurement-live-stage' : ''}`}>
             {source === 'camera' && <video ref={videoRef} autoPlay muted playsInline />}
             {source === 'photo' && photo && <img src={photo} alt="Uploaded pose preview" />}
             <PoseOverlay landmarks={landmarks} width={dimensions.width} height={dimensions.height} />
+            <MeasurementOverlay metrics={liveMetrics} width={dimensions.width} height={dimensions.height} unit={unit} />
+            {modelLoading && <div className="measurement-model-loading"><LoaderCircle className="w-6 h-6 animate-spin" /><span>Loading pose model…</span></div>}
             {source === 'camera' && cameraReady && <span className="measurement-live-badge"><i /> LIVE CAMERA</span>}
-            {landmarks && <span className="measurement-height-overlay">Height calibration · {knownHeight} cm</span>}
+            {landmarks && !liveMetrics && <span className="measurement-height-overlay">Move back until your head, shoulders, hips & ankles are all visible</span>}
           </div>}
           <div className="measurement-capture-actions">
             {!cameraReady && <button type="button" className="dori-primary-button" onClick={startCamera}><Camera size={17} /> Open camera</button>}
@@ -251,6 +336,7 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
           <div className="measurement-pose-stage measurement-review-image">
             <img src={source === 'camera' ? cameraSnapshot : photo} alt="Captured pose preview with detected body landmarks" />
             <PoseOverlay landmarks={landmarks} width={dimensions.width} height={dimensions.height} />
+            <MeasurementOverlay metrics={liveMetrics} width={dimensions.width} height={dimensions.height} unit={unit} />
             <span className="measurement-height-overlay">Height calibration · {knownHeight} cm</span>
           </div>
           <div className="measurement-review-note"><ScanLine size={18} /><span>Visual estimates · {unit === 'in' ? 'inches' : 'centimeters'}. Circumferences are rough front-view estimates. Please edit them to match your tape measurements.</span></div>

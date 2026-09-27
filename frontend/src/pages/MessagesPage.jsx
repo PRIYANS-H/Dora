@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { approveOrderRequest, acceptOrderQuote, createCheckout, fetchOrderById, fetchOrderMessages, fetchOrders, sendOrderMessage, sendOrderQuote, verifyRazorpayPayment } from '../api/client';
 import { openRazorpayCheckout } from '../utils/razorpayCheckout';
 import { Check, CreditCard, MessageCircle, RefreshCw, Send, Sparkles } from 'lucide-react';
+import PageLoader from '../components/PageLoader';
+import Spinner from '../components/Spinner';
 
 const money = (minor, currency = 'INR') => new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format((minor || 0) / 100);
 
@@ -15,6 +17,7 @@ export default function MessagesPage({ profile }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const isTailor = useMemo(() => order?.tailor?.profile_id === profile.id, [order, profile.id]);
   const loadOrders = useCallback(async (selectedId = order?.id) => {
@@ -27,9 +30,12 @@ export default function MessagesPage({ profile }) {
       setOrder(detail);
       setMessages(await fetchOrderMessages(selected.id));
     } catch (e) { setError(e.message); }
+    finally { setInitialLoading(false); }
   }, [order?.id]);
 
   useEffect(() => { loadOrders(); }, []);
+
+  if (initialLoading) return <PageLoader label="Loading conversations…" />;
   const selectOrder = async (id) => {
     setError(''); setNotice('');
     try { setOrder(await fetchOrderById(id)); setMessages(await fetchOrderMessages(id)); }
@@ -67,11 +73,11 @@ export default function MessagesPage({ profile }) {
         <header className="messages-thread-heading"><div><span className="dori-kicker">Order {order.id.slice(0, 8)} · {order.status.replaceAll('_', ' ')}</span><h3>{order.post?.title || order.spec_snapshot?.garment_type || 'Custom garment'}</h3><p>{isTailor ? `Customer · ${order.customer_name || 'DORI member'}` : `Tailor · ${order.tailor?.name || 'Professional'}`}</p></div><button className="tailor-refresh" onClick={refresh}><RefreshCw size={15} /> Refresh</button></header>
         {order.spec_snapshot?.fabric && <div className="order-fabric-snapshot">{order.spec_snapshot.fabric.image_url && <img src={order.spec_snapshot.fabric.image_url} alt={`${order.spec_snapshot.fabric.name} sample`} />}<div><strong>{order.spec_snapshot.fabric.name}</strong><span>{[order.spec_snapshot.fabric.color, order.spec_snapshot.fabric.composition].filter(Boolean).join(' · ')}</span></div></div>}
         <div className="messages-history">{messages.map((message) => <article key={message.id} className={message.sender_profile_id === profile.id ? 'mine' : ''}><strong>{message.profiles?.full_name || 'DORI member'}</strong><p>{message.body}</p><time>{message.created_at ? new Date(message.created_at).toLocaleString() : ''}</time></article>)}{!messages.length && <p className="order-hint">Share fit, fabric, timeline, and price details here.</p>}</div>
-        <form className="messages-compose" onSubmit={send}><input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={5000} placeholder="Write a message…" /><button disabled={busy || !draft.trim()} aria-label="Send message"><Send size={16} /></button></form>
+        <form className="messages-compose" onSubmit={send}><input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={5000} placeholder="Write a message…" /><button disabled={busy || !draft.trim()} aria-label="Send message">{busy ? <Spinner size="sm" /> : <Send size={16} />}</button></form>
         <section className="messages-commerce">
-          {isTailor && order.status === 'placed' && <div className="messages-action-card"><div><strong>Review the order request</strong><p>Approve it to start the price discussion.</p></div><button disabled={busy} onClick={approve}>Approve request</button></div>}
-          {isTailor && ['negotiating', 'awaiting_payment'].includes(order.status) && <form className="tailor-quote-form messages-quote-form" onSubmit={propose}><h4><Sparkles size={16} /> Send or revise your price</h4><div className="shop-form-row"><label>Price (₹)<input type="number" min="0.01" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} /></label><label>Note<input value={quoteNote} maxLength={1000} onChange={(e) => setQuoteNote(e.target.value)} placeholder="What the price includes" /></label></div><button disabled={busy}>Send price proposal</button></form>}
-          {order.quotes?.map((quote) => <article className={`order-quote-card ${quote.status === 'accepted' ? 'accepted' : ''}`} key={quote.id}><span className="dori-kicker">Price proposal · {quote.status}</span><strong>{money(quote.amount_minor, quote.currency)}</strong>{quote.message && <p>{quote.message}</p>}{!isTailor && quote.status === 'proposed' && <button disabled={busy} onClick={() => accept(quote)}>Accept price</button>}{!isTailor && quote.status === 'accepted' && order.status === 'awaiting_payment' && <button disabled={busy} onClick={pay}><CreditCard size={15} /> Pay securely with Razorpay</button>}</article>)}
+          {isTailor && order.status === 'placed' && <div className="messages-action-card"><div><strong>Review the order request</strong><p>Approve it to start the price discussion.</p></div><button disabled={busy} onClick={approve}>{busy && <Spinner size="sm" />} Approve request</button></div>}
+          {isTailor && ['negotiating', 'awaiting_payment'].includes(order.status) && <form className="tailor-quote-form messages-quote-form" onSubmit={propose}><h4><Sparkles size={16} /> Send or revise your price</h4><div className="shop-form-row"><label>Price (₹)<input type="number" min="0.01" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} /></label><label>Note<input value={quoteNote} maxLength={1000} onChange={(e) => setQuoteNote(e.target.value)} placeholder="What the price includes" /></label></div><button disabled={busy}>{busy && <Spinner size="sm" />} Send price proposal</button></form>}
+          {order.quotes?.map((quote) => <article className={`order-quote-card ${quote.status === 'accepted' ? 'accepted' : ''}`} key={quote.id}><span className="dori-kicker">Price proposal · {quote.status}</span><strong>{money(quote.amount_minor, quote.currency)}</strong>{quote.message && <p>{quote.message}</p>}{!isTailor && quote.status === 'proposed' && <button disabled={busy} onClick={() => accept(quote)}>{busy && <Spinner size="sm" />} Accept price</button>}{!isTailor && quote.status === 'accepted' && order.status === 'awaiting_payment' && <button disabled={busy} onClick={pay}>{busy ? <Spinner size="sm" /> : <CreditCard size={15} />} Pay securely with Razorpay</button>}</article>)}
           {order.status === 'paid' && <div className="messages-paid"><Check size={16} /> Payment complete. Your order is ready to move into production.</div>}
         </section>
       </main>}

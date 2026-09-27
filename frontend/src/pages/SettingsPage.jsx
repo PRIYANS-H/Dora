@@ -1,7 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Check, ImagePlus, KeyRound, LoaderCircle, Save, X, MapPin, ShieldCheck } from 'lucide-react';
 import Cropper from 'react-easy-crop';
-import { supabase } from '../api/supabase';
 import { customRequestReset, customConfirmReset } from '../api/auth';
 import { uploadImage } from '../api/client';
 import { updateMyProfile, fetchRazorpaySettings, saveRazorpaySettings, disableRazorpaySettings } from '../api/client';
@@ -76,7 +75,7 @@ export default function SettingsPage({ session, profile, onSaved }) {
     let avatarUrl = profile.avatar_url;
     if (avatar && croppedAreaPixels) {
       try {
-        const blob = await getCroppedImg(avatar.src, croppedAreaPixels);
+        const blob = await getCroppedImg(avatar.file ? URL.createObjectURL(avatar.file) : avatar.src, croppedAreaPixels, { maxSize: 512 });
         avatarUrl = await uploadImage(blob, 'avatars');
       } catch (e) {
         setSaving(false); setError('Failed to upload avatar: ' + e.message); return;
@@ -84,9 +83,7 @@ export default function SettingsPage({ session, profile, onSaved }) {
     }
     let data;
     try {
-      data = await updateMyProfile({ username: form.username, full_name: form.full_name, bio: form.bio, is_professional: form.is_professional, avatar_url: avatarUrl, skills: form.skills.split(',').map((value) => value.trim()).filter(Boolean), location: form.location, latitude: form.latitude === '' ? null : Number(form.latitude), longitude: form.longitude === '' ? null : Number(form.longitude), phone_number: form.phone_number, phone_visible_to_order_partners: form.phone_visible_to_order_partners });
-      const { error: emailError } = await supabase.from('profiles').update({ email: form.email.trim() }).eq('id', profile.id);
-      if (emailError) throw new Error(emailError.message);
+      data = await updateMyProfile({ username: form.username, email: form.email.trim(), full_name: form.full_name, bio: form.bio, is_professional: form.is_professional, avatar_url: avatarUrl, skills: form.skills.split(',').map((value) => value.trim()).filter(Boolean), location: form.location, latitude: form.latitude === '' ? null : Number(form.latitude), longitude: form.longitude === '' ? null : Number(form.longitude), phone_number: form.phone_number, phone_visible_to_order_partners: form.phone_visible_to_order_partners });
       data = { ...data, email: form.email.trim() };
     } catch (profileError) { setSaving(false); setError(profileError.message); return; }
     
@@ -158,7 +155,16 @@ export default function SettingsPage({ session, profile, onSaved }) {
             </div>
             <div className="p-4 flex flex-col gap-4">
               <input type="range" min={1} max={3} step={0.1} value={zoom} onChange={(e) => setZoom(e.target.value)} className="w-full accent-emerald-500" />
-              <button type="button" onClick={() => setIsCropping(false)} className="dori-primary-button w-full">Apply Crop</button>
+              <button type="button" onClick={async () => {
+                if (avatar?.src && croppedAreaPixels) {
+                  try {
+                    const blob = await getCroppedImg(avatar.src, croppedAreaPixels, { maxSize: 512 });
+                    const url = URL.createObjectURL(blob);
+                    setAvatar({ src: url, file: avatar.file });
+                  } catch (e) { console.error(e); }
+                }
+                setIsCropping(false);
+              }} className="dori-primary-button w-full">Apply Crop</button>
             </div>
           </div>
         </div>

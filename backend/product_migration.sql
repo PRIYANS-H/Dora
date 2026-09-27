@@ -46,6 +46,21 @@ create table if not exists follows (
   primary key (follower_profile_id, followed_profile_id),
   check (follower_profile_id <> followed_profile_id)
 );
+-- If `follows` was originally created by the older migrate_social.py script
+-- (follower_id/following_id, referencing custom_users), the block above is a
+-- no-op and the app's queries for follower_profile_id/followed_profile_id
+-- fail outright. This safely renames the old columns in place if present.
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_name = 'follows' and column_name = 'follower_id')
+     and not exists (select 1 from information_schema.columns where table_name = 'follows' and column_name = 'follower_profile_id') then
+    alter table follows rename column follower_id to follower_profile_id;
+  end if;
+  if exists (select 1 from information_schema.columns where table_name = 'follows' and column_name = 'following_id')
+     and not exists (select 1 from information_schema.columns where table_name = 'follows' and column_name = 'followed_profile_id') then
+    alter table follows rename column following_id to followed_profile_id;
+  end if;
+end $$;
 
 create table if not exists post_likes (
   id uuid primary key default gen_random_uuid(),
@@ -77,6 +92,9 @@ create table if not exists garment_types (
   created_at timestamptz not null default now(),
   unique(profile_id, name)
 );
+-- Lets a tailor pick one of their own posts as the reference photo for a shop garment type.
+alter table garment_types add column if not exists image_url text;
+alter table garment_types add column if not exists post_id text references posts(id) on delete set null;
 
 create table if not exists fabrics (
   id uuid primary key default gen_random_uuid(),

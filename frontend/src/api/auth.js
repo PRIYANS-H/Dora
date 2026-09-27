@@ -1,6 +1,22 @@
 // Use relative path so Vite proxy routes requests through the ngrok tunnel
 export const API_BASE = '/api/auth';
 
+// Returns { exists, verified }, or null when the backend predates /auth/lookup
+// (the sign-in screen then falls back to "try sign-in, else create account").
+export async function lookupEmail(email) {
+  try {
+    const res = await fetch(`${API_BASE}/lookup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function customSignUp(email, password) {
   const res = await fetch(`${API_BASE}/signup`, {
     method: 'POST',

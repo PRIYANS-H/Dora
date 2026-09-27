@@ -1,0 +1,95 @@
+/* ==========================================================================
+   Discover: maker cards with always-visible actions and a wide profile modal.
+   ========================================================================== */
+
+.discover { display: grid; gap: 28px; }
+.discover-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 22px; }
+.discover-head > div { display: grid; gap: 14px; max-width: 640px; }
+.discover-search { flex: 0 1 360px; min-width: 240px; }
+.discover-search .input { height: 50px; background: rgb(24 55 82 / 0.28); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); }
+
+.maker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.maker-card { display: flex; flex-direction: column; overflow: hidden; border-radius: 28px; transition: transform 500ms var(--ease), box-shadow 500ms var(--ease); }
+.maker-card:hover { transform: translateY(-4px); box-shadow: var(--glass-shadow), 0 26px 60px rgb(0 0 0 / 0.35); }
+.maker-cover { display: block; width: 100%; height: 150px; padding: 0; overflow: hidden; background: #0b1622; border: 0; cursor: pointer; }
+.maker-mosaic { display: grid; width: 100%; height: 100%; gap: 2px; }
+.maker-mosaic.n-1 { grid-template-columns: 1fr; }
+.maker-mosaic.n-2 { grid-template-columns: 1fr 1fr; }
+.maker-mosaic.n-3 { grid-template-columns: 1.4fr 1fr; grid-template-rows: 1fr 1fr; }
+.maker-mosaic.n-3 img:first-child { grid-row: span 2; }
+.maker-mosaic img { width: 100%; height: 100%; min-height: 0; object-fit: cover; transition: transform 1000ms var(--ease); }
+.maker-card:hover .maker-mosaic img { transform: scale(1.05); }
+.maker-mosaic.is-empty { place-items: center; color: rgb(255 255 255 / 0.22); background: radial-gradient(120% 140% at 20% 0%, rgb(46 95 134 / 0.7), rgb(8 18 28 / 0.9) 70%); }
+.maker-mosaic.is-empty svg { width: 96px; height: auto; }
+.maker-body { position: relative; display: flex; flex: 1; flex-direction: column; gap: 12px; padding: 0 20px 20px; }
+.maker-avatar { width: 76px; height: 76px; margin-top: -38px; padding: 4px; background: rgb(8 18 28 / 0.75); border: 0; border-radius: 50%; box-shadow: 0 10px 28px rgb(0 0 0 / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.2); cursor: pointer; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.maker-id { display: grid; gap: 3px; min-width: 0; }
+.maker-id h3 { margin: 0; overflow: hidden; font-size: 20px; font-weight: 500; letter-spacing: -0.035em; white-space: nowrap; text-overflow: ellipsis; }
+.maker-id span { overflow: hidden; color: var(--text-3); font-size: 13px; text-transform: capitalize; white-space: nowrap; text-overflow: ellipsis; }
+.maker-rating { display: inline-flex; align-items: center; gap: 6px; color: #ffe2a8; font-size: 13px; font-weight: 600; }
+.maker-rating svg { width: 14px; height: 14px; }
+.maker-rating em { color: var(--text-3); font-style: normal; font-weight: 400; }
+.maker-rating.is-new { color: var(--cyan); font-weight: 500; }
+.maker-skills { display: flex; flex-wrap: wrap; gap: 6px; }
+.maker-skills .chip { height: 26px; font-size: 11.5px; }
+.maker-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: auto; padding-top: 4px; }
+.maker-card.is-skeleton .maker-body span { width: 76px; height: 76px; margin-top: -38px; border-radius: 50%; }
+.maker-card.is-skeleton .maker-body i { display: block; height: 14px; border-radius: 8px; }
+.maker-card.is-skeleton .maker-body i:last-child { width: 60%; }
+
+/* Follow button — never hidden; "Following" reveals "Unfollow" on hover */
+.follow-btn.is-following:hover:not(:disabled) .follow-label { font-size: 0; }
+.follow-btn.is-following:hover:not(:disabled) .follow-label::after { content: attr(data-hover); font-size: 12.5px; }
+.follow-btn.is-following:hover:not(:disabled) { color: var(--bad); border-color: rgb(255 159 176 / 0.4); background: rgb(255 80 110 / 0.08); }
+.follow-btn.is-self { cursor: default; }
+.follow-btn:disabled { opacity: 0.5; }
+
+/* Profile modal: a proper landscape rectangle — identity left, work right */
+.maker-modal-grid { display: grid; flex: 1; grid-template-columns: 360px minmax(0, 1fr); min-height: 0; }
+.maker-modal-id { position: relative; isolation: isolate; min-height: 0; overflow-y: auto; border-right: 1px solid var(--hair); scrollbar-width: none; }
+.maker-modal-backdrop { position: absolute; inset: 0 0 auto; z-index: -1; height: 190px; opacity: 0.55; -webkit-mask-image: linear-gradient(#000 30%, transparent); mask-image: linear-gradient(#000 30%, transparent); }
+.maker-modal-backdrop img { filter: saturate(1.1); }
+.maker-modal-id-inner { display: grid; justify-items: center; gap: 12px; padding: 64px 28px 28px; text-align: center; }
+.maker-modal-id-inner > .avatar { box-shadow: 0 0 0 4px rgb(8 18 28 / 0.75), 0 0 0 5px rgb(255 255 255 / 0.25), 0 18px 40px rgb(0 0 0 / 0.45); }
+.maker-modal-id h2 { margin-top: 2px; }
+.maker-modal-handle { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; color: var(--text-3); font-size: 13px; text-transform: capitalize; }
+.maker-modal-handle svg { width: 13px; height: 13px; margin-left: 4px; }
+.maker-modal-bio { margin: 2px 0 4px; color: var(--text-2); font-size: 13.5px; line-height: 1.55; }
+.maker-stats { width: 100%; margin: 6px 0 4px; }
+.maker-modal-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; width: 100%; margin-top: 6px; }
+.maker-owner-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.maker-upgrade { display: grid; gap: 4px; width: 100%; margin-top: 6px; padding: 14px 16px; color: var(--text-2); text-align: left; background: rgb(127 227 255 / 0.07); border: 1px solid rgb(127 227 255 / 0.22); border-radius: 18px; font: 400 13px 'Manrope', sans-serif; cursor: pointer; transition: background 200ms; }
+.maker-upgrade:hover { background: rgb(127 227 255 / 0.12); }
+.maker-upgrade strong { display: inline-flex; align-items: center; gap: 6px; color: #fff; font-weight: 500; }
+.maker-upgrade svg { width: 14px; height: 14px; }
+
+.maker-modal-main { display: flex; flex-direction: column; min-height: 0; padding: 22px 24px 0; }
+.maker-modal-main > .capsule-track { align-self: flex-start; margin-right: 52px; }
+.maker-modal-scroll { flex: 1; min-height: 0; margin-top: 18px; padding-bottom: 24px; overflow-y: auto; overscroll-behavior: contain; }
+.maker-portfolio { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.maker-portfolio-item { position: relative; aspect-ratio: 4 / 5; padding: 0; overflow: hidden; color: #fff; text-align: left; background: #0b1622; border: 0; border-radius: 20px; cursor: pointer; }
+.maker-portfolio-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 900ms var(--ease); }
+.maker-portfolio-item::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(transparent 50%, rgb(0 0 0 / 0.78)); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1); }
+.maker-portfolio-item span { position: absolute; z-index: 1; left: 14px; right: 14px; bottom: 12px; display: grid; gap: 3px; }
+.maker-portfolio-item strong { font-size: 14.5px; font-weight: 500; letter-spacing: -0.02em; }
+.maker-portfolio-item em { color: var(--text-2); font-size: 12px; font-style: normal; }
+.maker-portfolio-item:hover img { transform: scale(1.05); }
+.maker-shop h4 { margin: 4px 0 12px; color: var(--text-2); font-size: 13px; font-weight: 500; }
+.maker-shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-bottom: 20px; }
+.maker-shop-item { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 12px; padding: 10px; background: rgb(255 255 255 / 0.05); border: 1px solid var(--hair); border-radius: 18px; }
+.maker-shop-item img, .maker-shop-ph { width: 56px; height: 64px; object-fit: cover; border-radius: 12px; }
+.maker-shop-ph { display: grid; place-items: center; color: rgb(255 255 255 / 0.4); background: #10273a; }
+.maker-shop-ph svg { width: 34px; }
+.maker-shop-item div { display: grid; gap: 3px; min-width: 0; }
+.maker-shop-item strong { font-size: 13.5px; font-weight: 500; }
+.maker-shop-item span { color: var(--text-3); font-size: 12px; text-transform: capitalize; }
+.maker-shop-item p { display: -webkit-box; margin: 2px 0 0; overflow: hidden; color: var(--text-2); font-size: 12px; line-height: 1.4; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.maker-shop-item em { color: var(--cyan); font-size: 12px; font-style: normal; }
+
+@media (max-width: 960px) {
+  .maker-modal { overflow-y: auto; }
+  .maker-modal-grid { grid-template-columns: 1fr; flex: none; }
+  .maker-modal-id { border-right: 0; border-bottom: 1px solid var(--hair); overflow: visible; }
+  .maker-modal-main { padding: 18px 16px 0; }
+  .maker-modal-scroll { overflow: visible; }
+}

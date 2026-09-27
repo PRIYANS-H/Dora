@@ -23,6 +23,7 @@ class ProfileCreate(BaseModel):
 
 class ProfileUpdate(BaseModel):
     username: Optional[str] = None
+    email: Optional[str] = None
     full_name: Optional[str] = None
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -54,6 +55,8 @@ class GarmentTypeInput(BaseModel):
     category: str
     description: str = ""
     active: bool = True
+    image_url: Optional[str] = None
+    post_id: Optional[str] = None
 
 class FabricInput(BaseModel):
     name: str
