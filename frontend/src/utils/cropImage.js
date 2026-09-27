@@ -7,15 +7,27 @@ export const createImage = (url) =>
     image.src = url
   })
 
-export default async function getCroppedImg(imageSrc, pixelCrop) {
+export default async function getCroppedImg(imageSrc, pixelCrop, options = {}) {
   const image = await createImage(imageSrc)
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
 
   if (!ctx) return null
 
-  canvas.width = pixelCrop.width
-  canvas.height = pixelCrop.height
+  let destWidth = pixelCrop.width
+  let destHeight = pixelCrop.height
+
+  if (options.maxSize) {
+    const max = Math.max(destWidth, destHeight)
+    if (max > options.maxSize) {
+      const scale = options.maxSize / max
+      destWidth = Math.round(destWidth * scale)
+      destHeight = Math.round(destHeight * scale)
+    }
+  }
+
+  canvas.width = destWidth
+  canvas.height = destHeight
 
   ctx.drawImage(
     image,
@@ -25,13 +37,13 @@ export default async function getCroppedImg(imageSrc, pixelCrop) {
     pixelCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    destWidth,
+    destHeight
   )
 
   return new Promise((resolve) => {
     canvas.toBlob((file) => {
       resolve(file)
-    }, 'image/jpeg')
+    }, 'image/jpeg', 0.9)
   })
 }
