@@ -6,6 +6,7 @@ proxied request should hang — so each call starts a job the client polls.
 """
 import io
 import os
+import tempfile
 import threading
 import time
 import uuid
@@ -123,12 +124,22 @@ def _persist(source, owner_id: str, kind: str, name: str, ext: str, resource_typ
 def _gradio_client(space: str):
     from gradio_client import Client
     token = os.getenv("HF_TOKEN") or None
-    if not token:
-        return Client(space, verbose=False)
-    try:
-        return Client(space, token=token, verbose=False)
-    except TypeError:  # gradio_client < 2 named it hf_token
-        return Client(space, hf_token=token, verbose=False)
+    last_error = None
+    for attempt in range(4):
+        try:
+            if not token:
+                return Client(space, verbose=False)
+            try:
+                return Client(space, token=token, verbose=False)
+            except TypeError:
+                return Client(space, hf_token=token, verbose=False)
+        except Exception as e:
+            last_error = e
+            err_str = str(e).lower()
+            if "10054" not in err_str and "time" not in err_str and "connection" not in err_str and "retry" not in err_str:
+                raise
+            time.sleep(2)
+    raise last_error
 
 
 def _friendly_tryon_error(error: Exception) -> str:
@@ -209,104 +220,124 @@ def get_tryon(job_id: str, user=Depends(get_current_user)):
 
 # ── Photo → 3D (Tripo image-to-model) ─────────────────────────────────────────
 
-def _tripo(method: str, path: str, **kwargs) -> dict:
-    key = os.getenv("TRIPO_API_KEY", "").strip()
-    if not key:
-        raise HTTPException(status_code=503, detail="3D generation isn't configured. Add TRIPO_API_KEY to the backend .env.")
-    try:
-        response = requests.request(method, f"{TRIPO_API}{path}", headers={"Authorization": f"Bearer {key}"}, timeout=kwargs.pop("timeout", 60), **kwargs)
-        body = response.json()
-    except (requests.RequestException, ValueError):
-        raise HTTPException(status_code=502, detail="Couldn't reach Tripo. Try again in a moment.")
-    code = body.get("code")
-    if code != 0:
-        status, message = TRIPO_ERRORS.get(code, (502, body.get("message") or "Tripo couldn't start this model."))
-        raise HTTPException(status_code=status, detail=message)
-    return body.get("data") or {}
+def _update_model_job(task_id: str, **changes):
+    with _lock:
+        if task_id in _model_tasks:
+            _model_tasks[task_id].update(changes)
 
 
-def _output_url(output: dict, *keys) -> Optional[str]:
-    for key in keys:
-        value = output.get(key)
-        if isinstance(value, dict):
-            value = value.get("url")
-        if value:
-            return value
-    return None
+def _public_model_job(job: dict) -> dict:
+    return {
+        "task_id": job["task_id"], "status": job["status"], "stage": job.get("stage"),
+        "progress": job.get("progress", 0), "model_url": job.get("model_url"),
+        "preview_url": job.get("preview_url"), "error": job.get("error"),
+    }
 
 
-def _store_model(task_id: str, data: dict):
-    """Tripo's output links expire within minutes, so keep our own copy on success."""
-    record = _model_tasks.setdefault(task_id, {"owner": None})
-    with record.setdefault("lock", threading.Lock()):
-        if record.get("model_url"):
-            return
-        output = data.get("output") or {}
-        remote_model = _output_url(output, "pbr_model", "model", "base_model", "model_url")
-        if not remote_model:
-            raise HTTPException(status_code=502, detail="Tripo finished but returned no model file.")
-        response = requests.get(remote_model, timeout=120)
-        response.raise_for_status()
-        if len(response.content) > MAX_MODEL_BYTES:
-            raise HTTPException(status_code=502, detail="The generated model is too large to store.")
-        owner = record.get("owner") or "shared"
-        record["model_url"] = _persist(response.content, owner, "models", task_id, "glb", resource_type="raw")
-        preview = _output_url(output, "rendered_image", "rendered_image_url")
-        if preview:
+def _run_model3d(task_id: str, image_bytes: bytes, owner_id: str):
+    from gradio_client import handle_file
+    
+    def _predict_with_retry(client, *args, **kwargs):
+        last_error = None
+        for attempt in range(5):
             try:
-                image = requests.get(preview, timeout=60)
-                image.raise_for_status()
-                record["preview_url"] = _persist(image.content, owner, "tryon", f"{task_id}-preview", "webp")
-            except requests.RequestException:
-                pass
+                return client.predict(*args, **kwargs)
+            except Exception as e:
+                last_error = e
+                err_str = str(e).lower()
+                if "10054" not in err_str and "time" not in err_str and "connection" not in err_str and "retry" not in err_str:
+                    raise
+                print(f"[Model3D] Network error on attempt {attempt+1} ({e}), retrying...")
+                time.sleep(3)
+        raise last_error
+
+    try:
+        _update_model_job(task_id, stage="Initializing 3D engine", progress=10)
+        # Save bytes to temp file
+        temp_img = os.path.join(tempfile.gettempdir(), f"{task_id}.png")
+        with open(temp_img, "wb") as f:
+            f.write(image_bytes)
+
+        client = _gradio_client("TencentARC/InstantMesh")
+        
+        _update_model_job(task_id, stage="Removing background", progress=30)
+        processed_img = _predict_with_retry(client,
+            handle_file(temp_img),
+            True, # Remove background
+            api_name="/preprocess"
+        )
+        
+        _update_model_job(task_id, stage="Generating multi-views", progress=60)
+        mvs_result = _predict_with_retry(client,
+            handle_file(processed_img),
+            75, # Sample Steps
+            42, # Seed
+            api_name="/generate_mvs"
+        )
+        state = mvs_result[0] if isinstance(mvs_result, (list, tuple)) else mvs_result
+        mvs = mvs_result[1] if isinstance(mvs_result, (list, tuple)) and len(mvs_result) > 1 else None
+        
+        _update_model_job(task_id, stage="Building 3D Mesh (This takes a moment)", progress=85)
+        model_result = _predict_with_retry(client,
+            state,
+            api_name="/make3d"
+        )
+        obj_path = model_result[0] if isinstance(model_result, (list, tuple)) else model_result
+        glb_path = model_result[1] if isinstance(model_result, (list, tuple)) and len(model_result) > 1 else obj_path
+        
+        _update_model_job(task_id, stage="Saving 3D model", progress=95)
+        with open(glb_path, "rb") as f:
+            glb_data = f.read()
+        url = _persist(glb_data, owner_id, "models", task_id, "glb", resource_type="raw")
+        
+        try:
+            with open(mvs, "rb") as f:
+                preview_data = f.read()
+            preview_url = _persist(preview_data, owner_id, "tryon", f"{task_id}-preview", "webp")
+        except Exception:
+            preview_url = None
+        
+        _update_model_job(task_id, status="success", stage="Done", progress=100, model_url=url, preview_url=preview_url)
+        
+        # Cleanup
+        for path in (temp_img, processed_img, mvs, obj_path, glb_path):
+            try:
+                if path and os.path.exists(path): os.remove(path)
+            except Exception: pass
+            
+    except Exception as error:
+        print(f"[Model3D] InstantMesh failed for task {task_id}: {error}")
+        _update_model_job(task_id, status="failed", stage="Failed", progress=100, error=str(error))
 
 
 @router.get("/models3d/status")
 def model_status(user=Depends(get_current_user)):
-    try:
-        data = _tripo("GET", "/user/balance", timeout=20)
-    except HTTPException as error:
-        return {"available": False, "reason": error.detail}
-    balance = data.get("balance") or 0
-    return {"available": balance > 0, "balance": balance, "reason": None if balance > 0 else TRIPO_ERRORS[2010][1]}
+    # Always available now that it's free
+    return {"available": True, "balance": 999, "reason": None}
 
 
 @router.post("/models3d")
 def start_model(payload: ModelRequest, user=Depends(get_current_user)):
+    try:
+        import gradio_client  # noqa: F401
+    except ImportError:
+        raise HTTPException(status_code=503, detail="3D Generation needs the gradio_client package.")
+    
     image = _image_bytes(_resolve_image(payload.image_url.strip()))
-    kind = _image_type(image)
-    token = _tripo("POST", "/upload", files={"file": (f"photo.{kind}", image, f"image/{'jpeg' if kind == 'jpg' else kind}")}).get("image_token")
-    if not token:
-        raise HTTPException(status_code=502, detail="Tripo didn't accept the photo upload.")
-    task = _tripo("POST", "/task", json={
-        "type": "image_to_model",
-        "file": {"type": kind, "file_token": token},
-        "model_version": os.getenv("TRIPO_MODEL_VERSION", "v2.5-20250123"),
-        "texture": True,
-        "pbr": True,
-    })
-    task_id = task.get("task_id")
-    if not task_id:
-        raise HTTPException(status_code=502, detail="Tripo didn't return a task.")
-    _model_tasks[task_id] = {"owner": user["id"], "lock": threading.Lock()}
-    return {"task_id": task_id, "status": "queued", "progress": 0}
+    
+    with _lock:
+        if any(job.get("owner") == user["id"] and job["status"] == "running" for job in _model_tasks.values()):
+            raise HTTPException(status_code=429, detail="Your last 3D model is still generating, please wait.")
+        task_id = uuid.uuid4().hex
+        _model_tasks[task_id] = {"task_id": task_id, "owner": user["id"], "status": "running", "stage": "Queued", "progress": 0}
+        
+    _pool.submit(_run_model3d, task_id, image, user["id"])
+    return _public_model_job(_model_tasks[task_id])
 
 
 @router.get("/models3d/{task_id}")
 def get_model(task_id: str, user=Depends(get_current_user)):
-    record = _model_tasks.get(task_id)
-    if record and record.get("owner") not in (None, user["id"]):
+    job = _model_tasks.get(task_id)
+    if not job or job.get("owner") != user["id"]:
         raise HTTPException(status_code=404, detail="3D model not found.")
-    if record and record.get("model_url"):
-        return {"task_id": task_id, "status": "success", "progress": 100, "model_url": record["model_url"], "preview_url": record.get("preview_url")}
-    data = _tripo("GET", f"/task/{task_id}", timeout=30)
-    status = data.get("status", "unknown")
-    if status == "success":
-        _store_model(task_id, data)
-        record = _model_tasks[task_id]
-        return {"task_id": task_id, "status": "success", "progress": 100, "model_url": record["model_url"], "preview_url": record.get("preview_url")}
-    failed = status in {"failed", "cancelled", "banned", "expired", "unknown"}
-    return {
-        "task_id": task_id, "status": status, "progress": data.get("progress") or 0,
-        "error": "Tripo couldn't build a model from this photo. Try a clearer photo with a plain background." if failed else None,
-    }
+    return _public_model_job(job)
