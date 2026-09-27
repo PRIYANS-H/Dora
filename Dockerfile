@@ -37,8 +37,6 @@ COPY --from=backend-builder /install /usr/local
 # Copy backend source
 COPY backend/app/ ./app/
 COPY backend/static/ ./static/
-COPY backend/create_tables.py ./create_tables.py
-COPY backend/setup_db.py ./setup_db.py
 
 # Copy frontend build output to be served by FastAPI
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
