@@ -139,7 +139,7 @@ def _friendly_tryon_error(error: Exception) -> str:
         return "The try-on model took too long to respond. It may be busy — try again in a minute."
     if "RUNTIME_ERROR" in text or "PAUSED" in text or "sleeping" in text.lower():
         return "The try-on model is offline right now. Try again shortly."
-    return "The try-on model couldn't process these photos. Try a clearer, front-facing photo."
+    return f"The try-on model failed: {text}"
 
 
 def _run_tryon(job_id: str, person: str, garment: str, description: str, owner_id: str):
