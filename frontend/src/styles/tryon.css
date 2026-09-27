@@ -1,0 +1,80 @@
+/* ==========================================================================
+   Try-On Studio: inputs rail + result stage (2D look and 3D model).
+   ========================================================================== */
+
+.tryon { display: grid; gap: 22px; }
+.tryon-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.tryon-head > div { display: grid; gap: 12px; max-width: 620px; }
+.tryon > .notice { margin: 0; }
+
+.tryon-grid { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.tryon-inputs { position: sticky; top: 100px; display: grid; gap: 14px; padding: 20px; border-radius: 30px; }
+.tryon-step { display: flex; align-items: flex-start; gap: 12px; }
+.tryon-step:not(:first-child) { padding-top: 6px; border-top: 1px solid var(--hair); margin-top: 4px; }
+.tryon-step .step-num { margin-top: 2px; }
+.tryon-step h3 { margin: 0; font-size: 16px; font-weight: 500; letter-spacing: -0.03em; }
+.tryon-step p { margin: 3px 0 0; color: var(--text-3); font-size: 12.5px; line-height: 1.45; }
+
+.tryon-garment, .tryon-person { position: relative; overflow: hidden; border-radius: 20px; background: #05080c; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1); }
+.tryon-garment img { display: block; width: 100%; height: 190px; object-fit: cover; object-position: center 25%; }
+.tryon-person img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+.tryon-garment > .btn { position: absolute; right: 10px; bottom: 10px; }
+.tryon-person-actions { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; justify-content: space-between; gap: 8px; }
+.tryon-photo-options { display: grid; gap: 8px; }
+.tryon-drop {
+  display: grid; justify-items: center; gap: 6px; width: 100%; padding: 26px 16px;
+  color: var(--text-2); background: rgb(0 0 0 / 0.22); border: 1px dashed rgb(255 255 255 / 0.28); border-radius: 20px;
+  font: inherit; cursor: pointer; transition: background 250ms, border-color 250ms, color 250ms;
+}
+.tryon-drop:hover:not(:disabled) { color: #fff; background: rgb(255 255 255 / 0.06); border-color: rgb(255 255 255 / 0.55); }
+.tryon-drop > svg { width: 26px; height: 26px; margin-bottom: 4px; }
+.tryon-drop strong { color: #fff; font-size: 14.5px; font-weight: 500; }
+.tryon-drop span { font-size: 12px; color: var(--text-3); }
+.tryon-privacy { margin: 0; color: var(--text-4); font-size: 11.5px; line-height: 1.5; }
+
+.tryon-stage { display: grid; gap: 14px; min-height: 560px; padding: 18px; border-radius: 30px; align-content: start; }
+.tryon-stage > .capsule-track { justify-self: start; }
+.tryon-view { display: grid; gap: 14px; animation: rise 560ms var(--ease) both; }
+.tryon-view .viz-stage { max-height: 72vh; }
+.tryon-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.tryon-empty { min-height: 460px; align-content: center; }
+
+.tryon-running { position: relative; display: grid; place-items: center; min-height: 520px; overflow: hidden; border-radius: 22px; background: #05080c; }
+.tryon-running > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(14px) brightness(0.55) saturate(1.2); transform: scale(1.08); }
+.tryon-running-card { display: grid; justify-items: center; gap: 10px; width: min(320px, 86%); padding: 26px 22px; text-align: center; border-radius: 26px; }
+.tryon-running-card strong { font-size: 16px; font-weight: 500; letter-spacing: -0.03em; }
+.tryon-running-card > span { color: var(--text-3); font-size: 12.5px; }
+.tryon-bar { width: 100%; height: 4px; margin-top: 4px; overflow: hidden; border-radius: 999px; background: rgb(255 255 255 / 0.12); }
+.tryon-bar i { display: block; height: 100%; border-radius: inherit; background: var(--sheen); transition: width 900ms var(--ease); }
+
+.tryon-model-frame { position: relative; height: min(68vh, 640px); overflow: hidden; border-radius: 22px; background: radial-gradient(90% 80% at 50% 30%, rgb(46 95 134 / 0.45), rgb(5 8 12 / 0.95) 70%); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1); }
+.tryon-model { width: 100%; height: 100%; --poster-color: transparent; --progress-bar-color: #7fe3ff; }
+.tryon-ar { position: absolute; right: 14px; bottom: 14px; }
+
+.tryon-building { display: grid; justify-items: center; align-content: center; gap: 14px; min-height: 460px; text-align: center; }
+.tryon-building strong { font-size: 17px; font-weight: 500; letter-spacing: -0.03em; }
+.tryon-ring { --p: 5; position: relative; display: grid; width: 132px; height: 132px; place-items: center; border-radius: 50%; background: conic-gradient(#7fe3ff 0%, #fff calc(var(--p) * 0.5%), #ffd7e6 calc(var(--p) * 1%), rgb(255 255 255 / 0.1) 0); transition: background 600ms; }
+.tryon-ring::before { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: rgb(8 18 28 / 0.95); }
+.tryon-ring span { position: relative; font-size: 28px; font-weight: 500; letter-spacing: -0.04em; }
+
+.tryon-3d-setup { display: grid; justify-items: start; gap: 18px; padding: 10px 6px; }
+.tryon-sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; width: 100%; }
+.tryon-source { display: grid; gap: 8px; padding: 8px 8px 12px; color: var(--text-2); background: rgb(0 0 0 / 0.22); border: 1px solid var(--hair); border-radius: 20px; font: 500 13px 'Manrope', sans-serif; cursor: pointer; transition: background 250ms, border-color 250ms, color 250ms, box-shadow 250ms; }
+.tryon-source:hover { color: #fff; background: rgb(255 255 255 / 0.06); }
+.tryon-source.is-selected { color: #fff; background: var(--capsule); border-color: rgb(255 255 255 / 0.5); box-shadow: var(--capsule-shadow); }
+.tryon-source-thumb { display: grid; aspect-ratio: 4 / 5; place-items: center; overflow: hidden; border-radius: 14px; background: #05080c; }
+.tryon-source-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.tryon-source-thumb svg { width: 22px; height: 22px; opacity: 0.6; }
+
+.tryon-camera-body, .tryon-picker-body { display: grid; gap: 14px; padding: 24px; overflow-y: auto; }
+.tryon-camera-stage { position: relative; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 20px; background: #05080c; }
+.tryon-camera-stage video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.tryon-camera-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-2); font-size: 13px; }
+.tryon-camera-guide { position: absolute; left: 22%; right: 22%; top: 9%; bottom: 6%; border: 1.5px dashed rgb(255 255 255 / 0.45); border-radius: 46% 46% 18px 18px; pointer-events: none; }
+.tryon-picker-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+@media (max-width: 980px) {
+  .tryon-grid { grid-template-columns: 1fr; }
+  .tryon-inputs { position: static; }
+  .tryon-stage { min-height: 0; padding: 12px; }
+}

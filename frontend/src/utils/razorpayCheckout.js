@@ -15,7 +15,7 @@ function loadCheckout() {
   return checkoutScriptPromise;
 }
 
-export async function openRazorpayCheckout(checkout, onSuccess, onFailure) {
+export async function openRazorpayCheckout(checkout, onSuccess, onFailure, onDismiss) {
   await loadCheckout();
   const widget = new window.Razorpay({
     key: checkout.key,
@@ -25,11 +25,11 @@ export async function openRazorpayCheckout(checkout, onSuccess, onFailure) {
     description: checkout.description,
     order_id: checkout.razorpay_order_id,
     prefill: checkout.prefill,
-    theme: { color: '#c5f06f' },
+    theme: { color: '#183752' },
     handler: async (response) => {
       try { await onSuccess(response); } catch (error) { onFailure?.(error); }
     },
-    modal: { ondismiss: () => {} },
+    modal: { ondismiss: () => onDismiss?.() },
   });
   widget.on('payment.failed', (response) => onFailure?.(new Error(response.error?.description || 'Payment did not go through. You can retry from this order.')));
   widget.open();

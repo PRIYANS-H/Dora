@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Compass, Home, LogOut, MessageCircle, Plus, Scissors, Settings, ShoppingBag, Sparkles, Store, UserRound } from 'lucide-react';
+import { Compass, Home, LogOut, MessageCircle, Plus, Scissors, Settings, Shirt, ShoppingBag, Sparkles, Store, UserRound } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import TopLoader from './TopLoader';
 import Toaster from './Toaster';
@@ -11,6 +11,7 @@ const MAIN_NAV = [
   { id: 'feed', label: 'Feed', icon: Home },
   { id: 'discover', label: 'Discover', icon: Compass },
   { id: 'remix', label: 'Remix Studio', short: 'Remix', icon: Sparkles },
+  { id: 'tryon', label: 'Try-On & 3D', short: 'Try-On', icon: Shirt },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
   { id: 'messages', label: 'Messages', icon: MessageCircle },
 ];
@@ -25,11 +26,12 @@ const PAGE_META = {
   feed: ['Feed', 'Your fashion orbit'],
   discover: ['Discover', 'Find your people'],
   remix: ['Remix Studio', 'Remix Studio'],
+  tryon: ['Try-On & 3D', 'Try-On Studio'],
   match: ['Remix Studio / Match', 'Tailors for your design'],
   brief: ['Remix Studio / Order', 'Make it yours'],
   receipt: ['Orders / Placed', 'Your request is in'],
   orders: ['Orders', 'Your orders'],
-  messages: ['Messages', 'Messages'],
+  messages: ['Messages', 'Inbox'],
   profile: ['Profile', 'Your profile'],
   settings: ['Settings', 'Account settings'],
   create: ['Studio / New post', 'Create a post'],
