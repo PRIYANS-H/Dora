@@ -143,6 +143,8 @@ class RemixResponse(BaseModel):
     attributes: Dict[str, str]
     remixed_image_url: str
     created_at: datetime
+    match_score: Optional[int] = None
+    can_collaborate: Optional[bool] = None
 
     class Config:
         from_attributes = True

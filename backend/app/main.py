@@ -187,7 +187,11 @@ def create_remix(payload: schemas.RemixCreate, user=Depends(get_current_user)):
         "created_at": datetime.utcnow().isoformat(),
     }
     insert_res = sb.table("remixes").insert(remix_row).execute()
-    return insert_res.data[0]
+    result = insert_res.data[0]
+    is_owner = post.get("profile_id") == profile["id"]
+    result["match_score"] = 100 if is_owner else 0
+    result["can_collaborate"] = not is_owner
+    return result
 
 
 # ── 5. GET /tailors/match + POST /tailors/match ────────────────────────────────
@@ -443,3 +447,18 @@ def _build_order_response(order, remix, tailor, post):
             "price_reference": post["price_reference"],
         } if post else None,
     )
+
+
+# ── Serve Frontend SPA ────────────────────────────────────────────────────────
+from fastapi.responses import FileResponse
+FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist")
+
+if os.path.exists(FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="frontend-assets")
+    
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        path = os.path.join(FRONTEND_DIST, full_path)
+        if os.path.isfile(path):
+            return FileResponse(path)
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
