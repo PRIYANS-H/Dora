@@ -1,169 +1,125 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, ArrowRight, Award, Check, MapPin, Scissors, Star, Users } from 'lucide-react';
 import { fetchTailors, matchTailors, sendCollabInvite } from '../api/client';
+import Avatar from '../components/Avatar';
 import MatchBars from '../components/MatchBars';
-import { avatarSrc, handleAvatarError } from '../utils/avatar';
-import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
-import { Scissors, Star, MapPin, CheckCircle, ArrowRight, Award, ShieldCheck, Users } from 'lucide-react';
+import { ATTRIBUTE_LABELS, colorName, swatchFor } from '../utils/attributes';
+import { toast } from '../utils/toast';
 
-export default function MatchPage({ remix, attributes, post, onSelectTailor }) {
-  const [tailors, setTailors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [collabStatus, setCollabStatus] = useState({});
+function ScoreRing({ value }) {
+  const score = Math.round(Number(value) || 0);
+  return (
+    <div className="score-ring" style={{ '--score': score }} role="img" aria-label={`${score}% match`}>
+      <span><strong>{score}</strong><em>%</em></span>
+    </div>
+  );
+}
 
-  const shareForCollab = async (tailor) => {
-    setCollabStatus((current) => ({ ...current, [tailor.id]: 'sending' }));
+function TailorCard({ tailor, rank, isOriginal, canShare, collab, onSelect, onShare }) {
+  const linked = Boolean(tailor.profile_id);
+  return (
+    <article className={`tailor-card glass rise ${rank === 0 ? 'is-top' : ''}`} style={{ '--i': rank }}>
+      <div className="tailor-card-badges">
+        {rank === 0 && <span className="tailor-badge glass-capsule"><Award /> Best match</span>}
+        {isOriginal && <span className="tailor-badge is-original">Original maker</span>}
+      </div>
+      <header className="tailor-card-head">
+        <Avatar src={tailor.photo_url} name={tailor.name} size={60} />
+        <div>
+          <h3>{tailor.name}</h3>
+          <span className="tailor-meta">
+            {tailor.reviews_count > 0 ? <><Star fill="currentColor" /> {Number(tailor.rating).toFixed(1)} <em>({tailor.reviews_count})</em></> : <em>New on DORI</em>}
+            {tailor.price_band && <span className="chip">{tailor.price_band}</span>}
+          </span>
+        </div>
+        <ScoreRing value={tailor.match_score} />
+      </header>
+      <MatchBars breakdown={tailor.breakdown} />
+      {(tailor.skills || []).length > 0 && (
+        <div className="tailor-skills">{tailor.skills.slice(0, 5).map((skill) => <span className="chip" key={skill}>{skill}</span>)}</div>
+      )}
+      <div className="tailor-actions">
+        <button type="button" className={`btn ${rank === 0 ? 'btn-solid' : ''}`} onClick={() => onSelect(tailor)} disabled={!linked} title={linked ? undefined : 'This demo tailor hasn’t connected a DORI account yet.'}>
+          <Scissors /> {linked ? `Choose ${tailor.name.split(' ')[0]}` : 'Not on DORI yet'} {linked && <ArrowRight />}
+        </button>
+        {canShare && (
+          <button type="button" className="btn btn-ghost" onClick={() => onShare(tailor)} disabled={!linked || collab === 'sending' || collab === 'sent'}>
+            {collab === 'sending' ? <Spinner size="sm" /> : collab === 'sent' ? <Check /> : <Users />}
+            {collab === 'sent' ? 'Design shared' : 'Share to collaborate'}
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
+
+export default function MatchPage({ remix, attributes, post, onSelectTailor, onBack }) {
+  const [tailors, setTailors] = useState(null);
+  const [collab, setCollab] = useState({});
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([matchTailors(attributes), post?.tailor_id ? fetchTailors() : Promise.resolve([])])
+      .then(([matches, all]) => {
+        let ranked = matches;
+        if (post?.tailor_id) {
+          const original = matches.find((item) => item.id === post.tailor_id) || all.find((item) => item.id === post.tailor_id);
+          if (original) ranked = [original, ...matches.filter((item) => item.id !== post.tailor_id)].slice(0, 4);
+        }
+        if (active) setTailors(ranked);
+      })
+      .catch(() => { if (active) setTailors([]); });
+    return () => { active = false; };
+  }, [attributes, post?.tailor_id]);
+
+  const share = async (tailor) => {
+    setCollab((current) => ({ ...current, [tailor.id]: 'sending' }));
     try {
       await sendCollabInvite(tailor.id, post?.id, attributes);
-      setCollabStatus((current) => ({ ...current, [tailor.id]: 'sent' }));
+      setCollab((current) => ({ ...current, [tailor.id]: 'sent' }));
+      toast(`Design shared with ${tailor.name}`);
     } catch (error) {
-      setCollabStatus((current) => ({ ...current, [tailor.id]: 'error' }));
-      window.alert(error.message);
+      setCollab((current) => ({ ...current, [tailor.id]: 'error' }));
+      toast(error.message || 'Couldn’t share the design', 'bad');
     }
   };
 
-  useEffect(() => {
-    Promise.all([matchTailors(attributes), post?.tailor_id ? fetchTailors() : Promise.resolve([])])
-      .then(([matches, allTailors]) => {
-        if (post?.tailor_id) {
-          const original = matches.find((item) => item.id === post.tailor_id) || allTailors.find((item) => item.id === post.tailor_id);
-          if (original) matches = [original, ...matches.filter((item) => item.id !== post.tailor_id)].slice(0, 4);
-        }
-        setTailors(matches);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, [attributes, post?.tailor_id]);
-
-  if (loading) {
-    return <PageLoader label="Running AI tailor matching…" />;
-  }
+  const spec = ['neckline', 'sleeves', 'fabric', 'color', 'fit'].filter((key) => attributes?.[key]);
 
   return (
-    <div className="space-y-6 pb-12 text-left">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/20 pb-4">
-        <div>
-          <span className="text-xs font-mono text-white uppercase tracking-widest flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4" />
-            AI Tailor Matching Engine
-          </span>
-          <h2 className="text-2xl font-extrabold text-gray-100 m-0 mt-1">
-            Top Matched Tailors for Your Spec
-          </h2>
-          <p className="text-xs text-gray-400 mt-1">
-            Ranked by multi-factor score: skill overlap, proximity, artisan rating & portfolio tags.
-          </p>
-        </div>
-      </div>
-
-      {/* Tailor Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {tailors.map((tailor, idx) => (
-          <div
-            key={tailor.id}
-            className={`lp-glass-panel rounded-2xl p-6 border flex flex-col justify-between transition-all relative overflow-hidden ${
-              idx === 0 ? 'border-amber-400/50 glow-gold bg-gray-900/80' : 'border-white/20'
-            }`}
-          >
-            {idx === 0 && (
-              <div className="absolute top-0 right-0 lp-glass-button  text-[10px] font-extrabold font-mono px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1">
-                <Award className="w-3 h-3" />
-                #1 Best Match
-              </div>
-            )}
-            {post?.tailor_id === tailor.id && <div className="match-original-creator">Original design maker</div>}
-
-            <div className="space-y-4">
-              {/* Tailor Avatar & Name */}
-              <div className="flex items-center gap-3">
-                <img
-                  src={avatarSrc(tailor.photo_url)}
-                  alt={tailor.name}
-                  onError={handleAvatarError}
-                  className="w-14 h-14 rounded-2xl object-cover border-2 border-white/20 shadow-md"
-                />
-                <div>
-                  <h3 className="text-base font-bold text-gray-100 m-0">
-                    {tailor.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
-                    <span className="flex items-center gap-1 text-white font-bold">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 stroke-none" />
-                      {tailor.rating}
-                    </span>
-                    <span>({tailor.reviews_count} reviews)</span>
-                    <span className="capitalize px-2 py-0.5 rounded bg-gray-800 text-[10px] text-gray-300 font-mono">
-                      {tailor.price_band}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Overall Match Score Banner */}
-              <div className="lp-glass-input rounded-xl p-3 border border-white/20/80 flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-300">Overall Match Score</span>
-                <span className="text-xl font-extrabold font-mono text-white">
-                  {tailor.match_score}%
-                </span>
-              </div>
-
-              {/* Explainable Score Breakdown Bars */}
-              <MatchBars breakdown={tailor.breakdown} />
-
-              {/* Artisan Skills Badges */}
-              <div className="pt-2">
-                <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider block mb-1">
-                  Artisan Skills
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {tailor.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="px-2 py-0.5 rounded-md bg-gray-900 border border-white/20 text-[10px] text-gray-300 font-mono capitalize"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Select Action */}
-            <div className="pt-6 space-y-2">
-              <button
-                onClick={() => onSelectTailor(tailor)}
-                disabled={!tailor.profile_id}
-                title={!tailor.profile_id ? 'This demo seller has not connected a DORI account yet.' : undefined}
-                className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
-                  idx === 0
-                    ? 'lp-glass-button  hover:bg-white/10 shadow-lg shadow-amber-400/20'
-                    : 'bg-gray-900 text-gray-200 hover:bg-gray-800 border border-gray-700'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                <Scissors className="w-4 h-4" />
-                {tailor.profile_id ? `Select ${tailor.name.split(' ')[0]}` : 'Seller not connected'}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              {post?.id && (
-                <button
-                  onClick={() => shareForCollab(tailor)}
-                  disabled={!tailor.profile_id || collabStatus[tailor.id] === 'sending' || collabStatus[tailor.id] === 'sent'}
-                  title={!tailor.profile_id ? 'This demo seller has not connected a DORI account yet.' : 'Share this design\'s full spec so this tailor can collaborate on or remix it.'}
-                  className="w-full py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-transparent text-gray-300 hover:text-white border border-white/20 hover:border-white/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {collabStatus[tailor.id] === 'sending' ? <Spinner size="sm" /> : <Users className="w-3.5 h-3.5" />}
-                  {collabStatus[tailor.id] === 'sent' ? 'Design shared ✓' : collabStatus[tailor.id] === 'sending' ? 'Sharing…' : 'Share design to collaborate'}
-                </button>
-              )}
-            </div>
-
+    <div className="match">
+      <section className="match-summary glass">
+        <img src={remix?.remixed_image_url || post?.image_url} alt="" />
+        <div className="match-summary-copy">
+          <span className="kicker live">Matching tailors for</span>
+          <h2 className="display title-md">{post?.title || 'Your remix'}</h2>
+          <div className="match-spec">
+            {spec.map((key) => (
+              <span className="chip" key={key}>
+                {key === 'color' && <i className="chip-dot" style={{ background: swatchFor(attributes[key]) || '#888' }} />}
+                <em>{ATTRIBUTE_LABELS[key]}</em> {key === 'color' ? colorName(attributes[key]) : attributes[key]}
+              </span>
+            ))}
           </div>
-        ))}
-      </div>
+          <p className="muted tiny"><MapPin /> Ranked by skill overlap, proximity, rating and portfolio fit.</p>
+        </div>
+        {onBack && <button type="button" className="btn btn-sm btn-ghost match-back" onClick={onBack}><ArrowLeft /> Edit remix</button>}
+      </section>
+
+      {tailors === null ? (
+        <div className="tailor-grid">
+          {Array.from({ length: 3 }, (_, index) => <div key={index} className="tailor-card glass is-skeleton"><span className="dori-skeleton" /><i className="dori-skeleton" /><i className="dori-skeleton" /><i className="dori-skeleton" /></div>)}
+        </div>
+      ) : tailors.length === 0 ? (
+        <div className="empty glass feed-empty"><Avatar size={52} /><strong>No tailors matched yet</strong><p>Try relaxing the fabric or fit — or check back as more tailors join DORI.</p></div>
+      ) : (
+        <div className="tailor-grid">
+          {tailors.map((tailor, index) => (
+            <TailorCard key={tailor.id} tailor={tailor} rank={index} isOriginal={post?.tailor_id === tailor.id} canShare={Boolean(post?.id)} collab={collab[tailor.id]} onSelect={onSelectTailor} onShare={share} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

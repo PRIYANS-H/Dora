@@ -1,8 +1,9 @@
 """Virtual try-on and photo-to-3D.
 
 Try-on runs IDM-VTON (github.com/yisol/IDM-VTON) through its Hugging Face Space;
-3D uses Tripo's image-to-model API. Both take tens of seconds — longer than a
-proxied request should hang — so each call starts a job the client polls.
+3D runs InstantMesh (github.com/TencentARC/InstantMesh) the same way. Both take
+tens of seconds — longer than a proxied request should hang — so each call
+starts a job the client polls.
 """
 import io
 import os
@@ -268,20 +269,17 @@ def _run_model3d(task_id: str, image_bytes: bytes, owner_id: str):
         )
         
         _update_model_job(task_id, stage="Generating multi-views", progress=60)
-        mvs_result = _predict_with_retry(client,
+        # Returns only the preview sheet; the multi-view tensor stays in this client's
+        # Gradio session, which is what /make3d (it takes no inputs) reads.
+        mvs = _predict_with_retry(client,
             handle_file(processed_img),
             75, # Sample Steps
             42, # Seed
             api_name="/generate_mvs"
         )
-        state = mvs_result[0] if isinstance(mvs_result, (list, tuple)) else mvs_result
-        mvs = mvs_result[1] if isinstance(mvs_result, (list, tuple)) and len(mvs_result) > 1 else None
-        
+
         _update_model_job(task_id, stage="Building 3D Mesh (This takes a moment)", progress=85)
-        model_result = _predict_with_retry(client,
-            state,
-            api_name="/make3d"
-        )
+        model_result = _predict_with_retry(client, api_name="/make3d")
         obj_path = model_result[0] if isinstance(model_result, (list, tuple)) else model_result
         glb_path = model_result[1] if isinstance(model_result, (list, tuple)) and len(model_result) > 1 else obj_path
         

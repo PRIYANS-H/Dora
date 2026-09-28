@@ -89,3 +89,11 @@ export const ATTRIBUTE_NOTES = {
     'cap sleeves': 'A short sleeve that just covers the shoulder cap.',
   },
 };
+
+// Plain-language garment description, used as the try-on model's garment prompt.
+export function describeGarment(post, attributes = {}) {
+  const color = attributes.color && (isCustomColor(attributes.color) ? `custom ${attributes.color}` : attributes.color);
+  const parts = [color, attributes.fabric, attributes.garment_type || post?.garment_type || 'garment'].filter(Boolean).join(' ');
+  const details = [attributes.neckline && `${attributes.neckline} neckline`, attributes.sleeves && `${attributes.sleeves} sleeves`, attributes.fit && `${attributes.fit} fit`].filter(Boolean).join(', ');
+  return details ? `${parts} with ${details}` : parts;
+}

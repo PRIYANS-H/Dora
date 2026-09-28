@@ -1,86 +1,272 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { approveOrderRequest, acceptOrderQuote, createCheckout, fetchOrderById, fetchOrderMessages, fetchOrders, sendOrderMessage, sendOrderQuote, verifyRazorpayPayment } from '../api/client';
-import { openRazorpayCheckout } from '../utils/razorpayCheckout';
-import { Check, CreditCard, MessageCircle, RefreshCw, Send, Sparkles } from 'lucide-react';
-import PageLoader from '../components/PageLoader';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Check, CreditCard, MessageCircle, RefreshCw, Search, Send, Tag } from 'lucide-react';
+import { acceptOrderQuote, approveOrderRequest, fetchOrderMessages, fetchOrders, sendOrderMessage, sendOrderQuote } from '../api/client';
+import Avatar from '../components/Avatar';
 import Spinner from '../components/Spinner';
+import { activeQuote, orderImage, orderTitle, payForOrder, statusLabel, statusTone } from '../utils/orders';
+import { clockTime, dayLabel, money, relativeTime, timeAgo } from '../utils/time';
+import { toast } from '../utils/toast';
 
-const money = (minor, currency = 'INR') => new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format((minor || 0) / 100);
+const GROUP_GAP_MS = 4 * 60 * 1000;
 
-export default function MessagesPage({ profile }) {
-  const [orders, setOrders] = useState([]);
-  const [order, setOrder] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [draft, setDraft] = useState('');
+function counterpart(order, profile) {
+  if (!order) return { name: '', photo: '' };
+  const tailorSide = order.tailor?.profile_id === profile.id;
+  return tailorSide
+    ? { name: order.customer_name || 'Customer', photo: '', role: 'Customer' }
+    : { name: order.tailor?.name || 'Your tailor', photo: order.tailor?.photo_url, role: 'Tailor' };
+}
+
+// Messages + price proposals as one timeline, with day separators and grouping.
+function buildTimeline(messages, quotes, profileId) {
+  const items = [
+    ...messages.map((message) => ({ kind: 'message', id: message.id, at: message.created_at, mine: message.sender_profile_id === profileId, message })),
+    ...(quotes || []).filter((quote) => quote.created_at).map((quote) => ({ kind: 'quote', id: `quote-${quote.id}`, at: quote.created_at, quote })),
+  ].sort((a, b) => new Date(a.at) - new Date(b.at));
+
+  const rows = [];
+  let lastDay = '';
+  items.forEach((item, index) => {
+    const day = dayLabel(item.at);
+    if (day && day !== lastDay) { rows.push({ kind: 'day', id: `day-${item.id}`, label: day }); lastDay = day; }
+    if (item.kind === 'message') {
+      const next = items[index + 1];
+      const prev = items[index - 1];
+      const sameAsPrev = prev?.kind === 'message' && prev.mine === item.mine && new Date(item.at) - new Date(prev.at) < GROUP_GAP_MS && dayLabel(prev.at) === day;
+      const sameAsNext = next?.kind === 'message' && next.mine === item.mine && new Date(next.at) - new Date(item.at) < GROUP_GAP_MS && dayLabel(next.at) === day;
+      rows.push({ ...item, first: !sameAsPrev, last: !sameAsNext });
+    } else rows.push(item);
+  });
+  return rows;
+}
+
+function DealBanner({ order, isTailor, busy, onApprove, onAccept, onPay, onPropose }) {
+  const [open, setOpen] = useState(false);
   const [price, setPrice] = useState('');
-  const [quoteNote, setQuoteNote] = useState('');
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [note, setNote] = useState('');
+  const quote = activeQuote(order);
 
-  const isTailor = useMemo(() => order?.tailor?.profile_id === profile.id, [order, profile.id]);
-  const loadOrders = useCallback(async (selectedId = order?.id) => {
-    try {
-      const rows = await fetchOrders('all');
-      setOrders(rows);
-      const selected = rows.find((row) => row.id === selectedId) || rows[0] || null;
-      if (!selected) { setOrder(null); setMessages([]); return; }
-      const detail = await fetchOrderById(selected.id);
-      setOrder(detail);
-      setMessages(await fetchOrderMessages(selected.id));
-    } catch (e) { setError(e.message); }
-    finally { setInitialLoading(false); }
+  const submit = async (event) => {
+    event.preventDefault();
+    const amount = Math.round(Number(price) * 100);
+    if (!(amount > 0)) return;
+    if (await onPropose(amount, note.trim())) { setOpen(false); setPrice(''); setNote(''); }
+  };
+
+  let text;
+  let action = null;
+  if (order.status === 'paid' || order.status === 'stitching' || order.status === 'ready' || order.status === 'delivered') {
+    text = <><Check /> Paid{quote ? ` · ${money(quote.amount_minor, quote.currency)}` : ''} — {order.status === 'paid' ? 'ready for production' : statusLabel(order.status)}</>;
+  } else if (isTailor && order.status === 'placed') {
+    text = 'New request — review the brief, then approve to start the price discussion.';
+    action = <button type="button" className="btn btn-sm btn-solid" onClick={onApprove} disabled={Boolean(busy)}>{busy === 'approve' ? <Spinner size="sm" /> : <Check />} Approve request</button>;
+  } else if (isTailor) {
+    text = quote ? <>You proposed <strong>{money(quote.amount_minor, quote.currency)}</strong> · {quote.status}</> : 'Send your price when you’re ready.';
+    action = <button type="button" className="btn btn-sm" onClick={() => setOpen((value) => !value)}><Tag /> {quote ? 'Revise price' : 'Propose price'}</button>;
+  } else if (quote?.status === 'proposed') {
+    text = <><strong>{money(quote.amount_minor, quote.currency)}</strong> proposed{quote.message ? ` — ${quote.message}` : ''}</>;
+    action = <button type="button" className="btn btn-sm btn-solid" onClick={() => onAccept(quote)} disabled={Boolean(busy)}>{busy === 'accept' ? <Spinner size="sm" /> : <Check />} Accept price</button>;
+  } else if (quote?.status === 'accepted' && order.status === 'awaiting_payment') {
+    text = <>Price agreed: <strong>{money(quote.amount_minor, quote.currency)}</strong></>;
+    action = <button type="button" className="btn btn-sm btn-solid" onClick={onPay} disabled={Boolean(busy)}>{busy === 'pay' ? <Spinner size="sm" /> : <CreditCard />} Pay securely</button>;
+  } else {
+    text = order.status === 'placed' ? 'Waiting for the tailor to review your request.' : 'Discuss details here — the tailor will propose a price.';
+  }
+
+  return (
+    <div className="dm-deal">
+      <div className="dm-deal-row"><span className="dm-deal-text">{text}</span>{action}</div>
+      {open && (
+        <form className="dm-quote-form" onSubmit={submit}>
+          <label className="dm-price"><input className="input" type="number" min="1" step="1" required value={price} onChange={(event) => setPrice(event.target.value)} placeholder="Price" aria-label="Price in rupees" autoFocus /><i>₹</i></label>
+          <input className="input" value={note} maxLength={1000} onChange={(event) => setNote(event.target.value)} placeholder="What the price includes (optional)" aria-label="Price note" />
+          <button type="submit" className="btn btn-solid" disabled={Boolean(busy)}>{busy === 'quote' ? <Spinner size="sm" /> : <Send />} Send</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+export default function MessagesPage({ profile, initialOrderId }) {
+  const [orders, setOrders] = useState(null);
+  const [selectedId, setSelectedId] = useState(initialOrderId || null);
+  const [messages, setMessages] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [query, setQuery] = useState('');
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [showThread, setShowThread] = useState(Boolean(initialOrderId));
+  const historyRef = useRef(null);
+  const stickToBottom = useRef(true);
+
+  const loadOrders = useCallback(async (silent) => {
+    const rows = await fetchOrders('all', { silent });
+    setOrders(rows);
+    setSelectedId((current) => (rows.some((row) => row.id === current) ? current : rows[0]?.id || null));
+  }, []);
+
+  useEffect(() => {
+    loadOrders(false).catch((cause) => { setError(cause.message); setOrders([]); });
+    const timer = window.setInterval(() => loadOrders(true).catch(() => {}), 20000);
+    return () => window.clearInterval(timer);
+  }, [loadOrders]);
+
+  const order = orders?.find((row) => row.id === selectedId) || null;
+  const isTailor = order?.tailor?.profile_id === profile.id;
+  const other = counterpart(order, profile);
+
+  useEffect(() => {
+    if (!order?.id) { setMessages([]); return undefined; }
+    let active = true;
+    stickToBottom.current = true;
+    setMessages([]);
+    setThreadLoading(true);
+    const load = () => fetchOrderMessages(order.id, { silent: true })
+      .then((rows) => { if (active) setMessages((current) => [...rows, ...current.filter((row) => row.pending)]); })
+      .catch(() => {})
+      .finally(() => { if (active) setThreadLoading(false); });
+    load();
+    const timer = window.setInterval(load, 5000);
+    return () => { active = false; window.clearInterval(timer); };
   }, [order?.id]);
 
-  useEffect(() => { loadOrders(); }, []);
+  const timeline = useMemo(() => buildTimeline(messages, order?.quotes, profile.id), [messages, order?.quotes, profile.id]);
 
-  if (initialLoading) return <PageLoader label="Loading conversations…" />;
-  const selectOrder = async (id) => {
-    setError(''); setNotice('');
-    try { setOrder(await fetchOrderById(id)); setMessages(await fetchOrderMessages(id)); }
-    catch (e) { setError(e.message); }
+  useLayoutEffect(() => {
+    const box = historyRef.current;
+    if (box && stickToBottom.current) box.scrollTop = box.scrollHeight;
+  }, [timeline.length]);
+
+  const onScroll = () => {
+    const box = historyRef.current;
+    if (box) stickToBottom.current = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
   };
-  const refresh = () => loadOrders(order?.id);
-  const send = async (e) => { e.preventDefault(); if (!draft.trim() || !order) return; setBusy(true); setError(''); try { await sendOrderMessage(order.id, draft.trim()); setDraft(''); await refresh(); } catch (e2) { setError(e2.message); } finally { setBusy(false); } };
-  const approve = async () => { setBusy(true); setError(''); try { await approveOrderRequest(order.id); setNotice('Order approved. Send your proposed price when ready.'); await refresh(); } catch (e) { setError(e.message); } finally { setBusy(false); } };
-  const propose = async (e) => { e.preventDefault(); setBusy(true); setError(''); try { await sendOrderQuote(order.id, { amount_minor: Math.round(Number(price) * 100), currency: 'INR', message: quoteNote }); setPrice(''); setQuoteNote(''); setNotice('Your price proposal was sent.'); await refresh(); } catch (e) { setError(e.message); } finally { setBusy(false); } };
-  const accept = async (quote) => { setBusy(true); setError(''); try { await acceptOrderQuote(order.id, quote.id); setNotice('Price accepted. Complete payment to confirm the order.'); await refresh(); } catch (e) { setError(e.message); } finally { setBusy(false); } };
-  const pay = async () => {
-    setBusy(true); setError(''); setNotice('');
+
+  const select = (id) => { setSelectedId(id); setShowThread(true); setError(''); };
+
+  const send = async (event) => {
+    event.preventDefault();
+    const body = draft.trim();
+    if (!body || !order) return;
+    const temp = { id: `tmp-${Date.now()}`, body, sender_profile_id: profile.id, created_at: new Date().toISOString(), pending: true };
+    setDraft('');
+    stickToBottom.current = true;
+    setMessages((current) => [...current, temp]);
     try {
-      const checkout = await createCheckout(order.id);
-      setBusy(false);
-      await openRazorpayCheckout(checkout, async (response) => {
-        setBusy(true);
-        await verifyRazorpayPayment(order.id, response);
-        setNotice('Payment confirmed. Your tailor has been notified.');
-        await refresh();
-        setBusy(false);
-      }, (checkoutError) => { setBusy(false); setError(checkoutError.message); });
-    } catch (e) { setBusy(false); setError(e.message); }
+      const saved = await sendOrderMessage(order.id, body);
+      setMessages((current) => current.map((row) => (row.id === temp.id ? { ...temp, ...saved, pending: false } : row)));
+    } catch (cause) {
+      setMessages((current) => current.filter((row) => row.id !== temp.id));
+      setDraft(body);
+      toast(cause.message || 'Message not sent', 'bad');
+    }
   };
 
-  return <div className="messages-page">
-    <header className="messages-heading"><div><span className="dori-kicker">DORI / Messages</span><h2>Make the details fit.</h2><p>Talk through each order, agree on a price, then pay securely.</p></div><button className="tailor-refresh" onClick={refresh}><RefreshCw size={15} /> Refresh</button></header>
-    {error && <div className="shop-error" role="alert">{error}</div>}{notice && <div className="messages-notice"><Check size={16} />{notice}</div>}
-    <div className="messages-layout">
-      <aside className="messages-order-list"><div className="messages-list-label"><MessageCircle size={16} /> Order conversations <span>{orders.length}</span></div>
-        {!orders.length && <p className="order-hint">Your order conversations will appear here once a request is placed.</p>}
-        {orders.map((item) => { const tailorSide = item.tailor?.profile_id === profile.id; return <button key={item.id} className={`messages-order-row ${item.id === order?.id ? 'active' : ''}`} onClick={() => selectOrder(item.id)}><strong>{item.post?.title || item.spec_snapshot?.garment_type || 'Custom garment'}</strong><span>{tailorSide ? item.customer_name || 'Customer' : item.tailor?.name || 'Your tailor'}</span><small>{item.status.replaceAll('_', ' ')}</small></button>; })}
+  const run = async (kind, action, success) => {
+    setBusy(kind); setError('');
+    try { const result = await action(); if (result !== false) { if (success) toast(success); await loadOrders(true); } return result !== false; }
+    catch (cause) { setError(cause.message); return false; }
+    finally { setBusy(''); }
+  };
+
+  const approve = () => run('approve', () => approveOrderRequest(order.id), 'Request approved — send your price when ready');
+  const accept = (quote) => run('accept', () => acceptOrderQuote(order.id, quote.id), 'Price accepted — complete payment to confirm');
+  const pay = () => run('pay', () => payForOrder(order.id), 'Payment confirmed');
+  const propose = (amount, note) => run('quote', () => sendOrderQuote(order.id, { amount_minor: amount, currency: 'INR', message: note }), 'Price proposal sent');
+
+  const visibleOrders = (orders || []).filter((row) => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return true;
+    return [orderTitle(row), counterpart(row, profile).name].some((value) => value.toLowerCase().includes(needle));
+  });
+
+  return (
+    <div className={`dm glass ${showThread ? 'is-thread' : ''}`}>
+      <aside className="dm-list">
+        <header className="dm-list-head">
+          <h2 className="display title-sm">Messages</h2>
+          <button type="button" className="btn btn-sm btn-quiet btn-icon" onClick={() => loadOrders(false).catch(() => {})} aria-label="Refresh conversations"><RefreshCw /></button>
+        </header>
+        <label className="input-icon dm-search"><Search /><input className="input input-pill" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" aria-label="Search conversations" /></label>
+        <div className="dm-rows">
+          {orders === null && Array.from({ length: 5 }, (_, index) => <div key={index} className="dm-row is-skeleton"><span className="dori-skeleton" /><i className="dori-skeleton" /></div>)}
+          {orders?.length === 0 && <div className="empty"><Avatar size={48} /><strong>No conversations yet</strong><p>Every order request opens a conversation with the tailor here.</p></div>}
+          {visibleOrders.map((row) => {
+            const person = counterpart(row, profile);
+            return (
+              <button type="button" key={row.id} className={`dm-row ${row.id === order?.id ? 'is-active' : ''}`} onClick={() => select(row.id)}>
+                <span className="dm-row-avatar">
+                  <Avatar src={person.photo} name={person.name} size={52} />
+                  {orderImage(row) && <img src={orderImage(row)} alt="" />}
+                </span>
+                <span className="dm-row-body">
+                  <strong>{person.name}</strong>
+                  <span>{orderTitle(row)} · {statusLabel(row.status)}</span>
+                </span>
+                <time dateTime={row.updated_at || row.created_at}>{timeAgo(row.updated_at || row.created_at)}</time>
+              </button>
+            );
+          })}
+        </div>
       </aside>
-      {!order ? <section className="messages-empty"><MessageCircle size={32} /><h3>No order selected</h3><p>Place a custom order or select a conversation to negotiate details.</p></section> : <main className="messages-thread">
-        <header className="messages-thread-heading"><div><span className="dori-kicker">Order {order.id.slice(0, 8)} · {order.status.replaceAll('_', ' ')}</span><h3>{order.post?.title || order.spec_snapshot?.garment_type || 'Custom garment'}</h3><p>{isTailor ? `Customer · ${order.customer_name || 'DORI member'}` : `Tailor · ${order.tailor?.name || 'Professional'}`}</p></div><button className="tailor-refresh" onClick={refresh}><RefreshCw size={15} /> Refresh</button></header>
-        {order.spec_snapshot?.fabric && <div className="order-fabric-snapshot">{order.spec_snapshot.fabric.image_url && <img src={order.spec_snapshot.fabric.image_url} alt={`${order.spec_snapshot.fabric.name} sample`} />}<div><strong>{order.spec_snapshot.fabric.name}</strong><span>{[order.spec_snapshot.fabric.color, order.spec_snapshot.fabric.composition].filter(Boolean).join(' · ')}</span></div></div>}
-        <div className="messages-history">{messages.map((message) => <article key={message.id} className={message.sender_profile_id === profile.id ? 'mine' : ''}><strong>{message.profiles?.full_name || 'DORI member'}</strong><p>{message.body}</p><time>{message.created_at ? new Date(message.created_at).toLocaleString() : ''}</time></article>)}{!messages.length && <p className="order-hint">Share fit, fabric, timeline, and price details here.</p>}</div>
-        <form className="messages-compose" onSubmit={send}><input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={5000} placeholder="Write a message…" /><button disabled={busy || !draft.trim()} aria-label="Send message">{busy ? <Spinner size="sm" /> : <Send size={16} />}</button></form>
-        <section className="messages-commerce">
-          {isTailor && order.status === 'placed' && <div className="messages-action-card"><div><strong>Review the order request</strong><p>Approve it to start the price discussion.</p></div><button disabled={busy} onClick={approve}>{busy && <Spinner size="sm" />} Approve request</button></div>}
-          {isTailor && ['negotiating', 'awaiting_payment'].includes(order.status) && <form className="tailor-quote-form messages-quote-form" onSubmit={propose}><h4><Sparkles size={16} /> Send or revise your price</h4><div className="shop-form-row"><label>Price (₹)<input type="number" min="0.01" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} /></label><label>Note<input value={quoteNote} maxLength={1000} onChange={(e) => setQuoteNote(e.target.value)} placeholder="What the price includes" /></label></div><button disabled={busy}>{busy && <Spinner size="sm" />} Send price proposal</button></form>}
-          {order.quotes?.map((quote) => <article className={`order-quote-card ${quote.status === 'accepted' ? 'accepted' : ''}`} key={quote.id}><span className="dori-kicker">Price proposal · {quote.status}</span><strong>{money(quote.amount_minor, quote.currency)}</strong>{quote.message && <p>{quote.message}</p>}{!isTailor && quote.status === 'proposed' && <button disabled={busy} onClick={() => accept(quote)}>{busy && <Spinner size="sm" />} Accept price</button>}{!isTailor && quote.status === 'accepted' && order.status === 'awaiting_payment' && <button disabled={busy} onClick={pay}>{busy ? <Spinner size="sm" /> : <CreditCard size={15} />} Pay securely with Razorpay</button>}</article>)}
-          {order.status === 'paid' && <div className="messages-paid"><Check size={16} /> Payment complete. Your order is ready to move into production.</div>}
-        </section>
-      </main>}
+
+      <section className="dm-thread">
+        {!order ? (
+          <div className="empty dm-empty"><span className="dm-empty-icon"><MessageCircle /></span><strong>Your messages</strong><p>Pick a conversation to agree on fit, fabric, price and delivery.</p></div>
+        ) : (
+          <>
+            <header className="dm-thread-head">
+              <button type="button" className="btn btn-sm btn-quiet btn-icon dm-back" onClick={() => setShowThread(false)} aria-label="Back to conversations"><ArrowLeft /></button>
+              <Avatar src={other.photo} name={other.name} size={44} />
+              <div className="dm-thread-id">
+                <strong>{other.name}</strong>
+                <span>{other.role} · {orderTitle(order)}</span>
+              </div>
+              <span className={`status-pill tone-${statusTone(order.status)}`}>{statusLabel(order.status)}</span>
+            </header>
+
+            <DealBanner order={order} isTailor={isTailor} busy={busy} onApprove={approve} onAccept={accept} onPay={pay} onPropose={propose} />
+            {error && <p className="notice tone-bad dm-error" role="alert">{error}</p>}
+
+            <div className="dm-history" ref={historyRef} onScroll={onScroll}>
+              <div className="dm-intro">
+                {orderImage(order) && <img src={orderImage(order)} alt="" />}
+                <strong>{orderTitle(order)}</strong>
+                <span>Order {order.id.slice(0, 8)} · started {relativeTime(order.created_at)}</span>
+              </div>
+              {threadLoading && messages.length === 0 && <div className="dm-loading"><Spinner size="md" /></div>}
+              {timeline.map((row) => {
+                if (row.kind === 'day') return <div key={row.id} className="dm-day"><span>{row.label}</span></div>;
+                if (row.kind === 'quote') {
+                  return (
+                    <div key={row.id} className={`dm-quote is-${row.quote.status}`}>
+                      <span className="dm-quote-icon"><Tag /></span>
+                      <div><em>Price proposal · {row.quote.status}</em><strong>{money(row.quote.amount_minor, row.quote.currency)}</strong>{row.quote.message && <p>{row.quote.message}</p>}</div>
+                      <time>{clockTime(row.at)}</time>
+                    </div>
+                  );
+                }
+                const { message } = row;
+                return (
+                  <div key={row.id} className={`dm-msg ${row.mine ? 'is-mine' : ''} ${row.first ? 'is-first' : ''} ${row.last ? 'is-last' : ''} ${message.pending ? 'is-pending' : ''}`}>
+                    {!row.mine && <span className="dm-msg-avatar">{row.last && <Avatar src={other.photo || message.profiles?.avatar_url} name={message.profiles?.full_name || other.name} size={28} />}</span>}
+                    <div className="dm-msg-stack">
+                      <p className="bubble">{message.body}</p>
+                      {row.last && <time dateTime={message.created_at}>{message.pending ? 'Sending…' : clockTime(message.created_at)}</time>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <form className="composer dm-composer" onSubmit={send}>
+              <input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={5000} placeholder={`Message ${other.name.split(' ')[0]}…`} aria-label="Write a message" />
+              <button type="submit" disabled={!draft.trim()} aria-label="Send message"><Send /></button>
+            </form>
+          </>
+        )}
+      </section>
     </div>
-  </div>;
+  );
 }

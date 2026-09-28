@@ -1,5 +1,6 @@
 # ── Stage 1: Build Frontend ───────────────────────────────────────────────────
-FROM node:18-alpine AS frontend-builder
+# Needs Node 22+: vite 8/rolldown crash on Node 18, supabase-js requires >= 22
+FROM node:24-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 # Arguments for Vite build

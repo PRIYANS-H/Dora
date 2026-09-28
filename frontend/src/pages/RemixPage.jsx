@@ -5,7 +5,7 @@ import AttributeArt, { hasArt } from '../components/AttributeArt';
 import BeforeAfter from '../components/BeforeAfter';
 import CapsuleTabs from '../components/CapsuleTabs';
 import Avatar from '../components/Avatar';
-import { ATTRIBUTE_LABELS, ATTRIBUTE_NOTES, ATTRIBUTE_OPTIONS, COLOR_SWATCHES, colorName, fabricTexture, isCustomColor, isLightColor, swatchFor } from '../utils/attributes';
+import { ATTRIBUTE_LABELS, ATTRIBUTE_NOTES, ATTRIBUTE_OPTIONS, colorName, describeGarment, fabricTexture, isCustomColor, isLightColor, swatchFor } from '../utils/attributes';
 import { getPosts } from '../utils/postsCache';
 import { postPrice } from '../utils/time';
 
@@ -13,12 +13,6 @@ const CATEGORIES = Object.keys(ATTRIBUTE_OPTIONS);
 const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
 const DEFAULTS = { neckline: 'mandarin', sleeves: 'full', fabric: 'heavy cotton twill', color: 'onyx', fit: 'regular' };
 
-export function describeGarment(post, attributes = {}) {
-  const color = attributes.color && (isCustomColor(attributes.color) ? `custom ${attributes.color}` : attributes.color);
-  const parts = [color, attributes.fabric, attributes.garment_type || post?.garment_type || 'garment'].filter(Boolean).join(' ');
-  const details = [attributes.neckline && `${attributes.neckline} neckline`, attributes.sleeves && `${attributes.sleeves} sleeves`, attributes.fit && `${attributes.fit} fit`].filter(Boolean).join(', ');
-  return details ? `${parts} with ${details}` : parts;
-}
 
 function DesignPicker({ onPick }) {
   const [posts, setPosts] = useState(null);
@@ -161,7 +155,7 @@ export default function RemixPage({ post, onPickPost, onProceedToMatch, onTryOn 
     return () => { active = false; };
   }, [post?.tailor_id]);
 
-  const base = post?.base_attributes || {};
+  const base = useMemo(() => post?.base_attributes || {}, [post]);
   const changes = useMemo(() => CATEGORIES.filter((key) => base[key] && attributes[key] && !same(base[key], attributes[key])), [attributes, base]);
   const allChosen = CATEGORIES.every((key) => Boolean(attributes[key]));
 

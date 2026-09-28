@@ -19,6 +19,14 @@ export function timeAgo(value) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+// "just now", "5m ago", "3h ago", "2d ago" — or "on Sep 20" once it's older than a week.
+export function relativeTime(value) {
+  const short = timeAgo(value);
+  if (!short) return '';
+  if (short === 'now') return 'just now';
+  return /^\d+[mhd]$/.test(short) ? `${short} ago` : `on ${short}`;
+}
+
 export function clockTime(value) {
   const date = toDate(value);
   return date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';

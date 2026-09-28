@@ -1,67 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, ImagePlus, LoaderCircle, RotateCcw, ScanLine, X } from 'lucide-react';
+import { Camera, Check, ImagePlus, RotateCcw, ScanLine } from 'lucide-react';
+import Modal from './Modal';
+import Spinner from './Spinner';
+import '../styles/measure.css';
 
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
 const PACKAGE_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
-const LINKS = [[0,11],[0,12],[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32]];
+const LINKS = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28]];
 
-function PoseOverlay({ landmarks, width, height }) {
-  if (!landmarks || !width || !height) return null;
-  const point = (index) => ({ x: landmarks[index].x * width, y: landmarks[index].y * height });
-  return <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-    {LINKS.map(([from, to]) => {
-      if ((landmarks[from].visibility ?? 1) <= 0.45 || (landmarks[to].visibility ?? 1) <= 0.45) return null;
-      const a = point(from), b = point(to);
-      return <line key={`${from}-${to}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
-    })}
-    {landmarks.map((item, index) => {
-      if ((item.visibility ?? 1) <= 0.45) return null;
-      const p = point(index);
-      return <circle key={index} cx={p.x} cy={p.y} r={Math.max(width, height) * 0.006} />;
-    })}
-  </svg>;
-}
-
-// Draws the labeled green measuring lines (height / shoulder / waist / hip) that overlay
-// the live camera feed or captured photo, similar to an AR tape-measure.
-function MeasurementOverlay({ metrics, width, height, unit }) {
-  if (!metrics || !width || !height) return null;
-  const factor = unit === 'in' ? 1 / 2.54 : 1;
-  const suffix = unit === 'in' ? '"' : ' cm';
-  const fmt = (cm) => `${Math.round(cm * factor * 10) / 10}${suffix}`;
-  const { pixels, cm } = metrics;
-  const fontSize = Math.max(width, height) * 0.024;
-  return (
-    <svg className="dori-measure-overlay" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      {/* Height: vertical line from head to feet */}
-      <line className="dori-measure-line" x1={pixels.centerX} y1={pixels.top} x2={pixels.centerX} y2={pixels.bottom} />
-      <line className="dori-measure-tick" x1={pixels.centerX - 14} y1={pixels.top} x2={pixels.centerX + 14} y2={pixels.top} />
-      <line className="dori-measure-tick" x1={pixels.centerX - 14} y1={pixels.bottom} x2={pixels.centerX + 14} y2={pixels.bottom} />
-      <text className="dori-measure-label" x={pixels.centerX + 20} y={(pixels.top + pixels.bottom) / 2} fontSize={fontSize}>
-        Height: {fmt(cm.height)}
-      </text>
-
-      {/* Shoulder width */}
-      <line className="dori-measure-line" x1={pixels.shoulderX1} y1={pixels.shoulderY} x2={pixels.shoulderX2} y2={pixels.shoulderY} />
-      <text className="dori-measure-label" x={(pixels.shoulderX1 + pixels.shoulderX2) / 2} y={pixels.shoulderY - 10} fontSize={fontSize} textAnchor="middle">
-        Shoulder: {fmt(cm.shoulder)}
-      </text>
-
-      {/* Waist width */}
-      <line className="dori-measure-line" x1={pixels.centerX - pixels.waistHalfWidth} y1={pixels.waistY} x2={pixels.centerX + pixels.waistHalfWidth} y2={pixels.waistY} />
-      <text className="dori-measure-label" x={pixels.centerX + pixels.waistHalfWidth + 8} y={pixels.waistY} fontSize={fontSize}>
-        Waist: {fmt(cm.waist)}
-      </text>
-
-      {/* Hip width */}
-      <line className="dori-measure-line" x1={pixels.hipX1} y1={pixels.hipY} x2={pixels.hipX2} y2={pixels.hipY} />
-      <text className="dori-measure-label" x={(pixels.hipX1 + pixels.hipX2) / 2} y={pixels.hipY + fontSize + 4} fontSize={fontSize} textAnchor="middle">
-        Hip: {fmt(cm.hip)}
-      </text>
-    </svg>
-  );
-}
+// Body proportions used to calibrate when the whole body isn't in frame yet:
+// shoulder→hip is ~30% of standing height, shoulder-joint span ~20%.
+const TORSO_TO_HEIGHT = 0.30;
+const SHOULDERS_TO_HEIGHT = 0.20;
+// Pose landmarks sit on joint centres, so breadths and girths are scaled up from
+// them with typical adult ratios (front view only — tailors confirm by tape).
+const RATIO = { shoulder: 1.15, chest: 2.65, waistFromShoulder: 1.95, waistFromHip: 3.9, hip: 5.1 };
 
 let visionPromise;
 let landmarkerPromise;
@@ -70,118 +24,175 @@ async function getLandmarker(mode) {
   if (!visionPromise) visionPromise = import(/* @vite-ignore */ PACKAGE_URL);
   const vision = await visionPromise;
   if (!landmarkerPromise) {
-    landmarkerPromise = vision.FilesetResolver.forVisionTasks(WASM_URL).then((fileset) =>
-      vision.PoseLandmarker.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: MODEL_URL },
-        runningMode: mode,
-        numPoses: 1,
-        minPoseDetectionConfidence: 0.55,
-        minPosePresenceConfidence: 0.55,
-        minTrackingConfidence: 0.55,
-      })
-    );
+    landmarkerPromise = vision.FilesetResolver.forVisionTasks(WASM_URL).then((fileset) => vision.PoseLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: MODEL_URL },
+      runningMode: mode,
+      numPoses: 1,
+      minPoseDetectionConfidence: 0.55,
+      minPosePresenceConfidence: 0.55,
+      minTrackingConfidence: 0.55,
+    }));
   }
   const task = await landmarkerPromise;
   await task.setOptions({ runningMode: mode });
   return task;
 }
 
-function distance(a, b, width, height) {
-  if (!a || !b || (a.visibility ?? 1) < 0.35 || (b.visibility ?? 1) < 0.35) return 0;
-  return Math.hypot((a.x - b.x) * width, (a.y - b.y) * height);
+const visible = (point, threshold = 0.45) => Boolean(point) && (point.visibility ?? 1) >= threshold;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+// Turns landmarks into on-body measurement lines (pixel space) plus cm values.
+// Calibrates from full height when head and feet are visible, otherwise from the
+// torso or shoulders so lines appear as soon as the upper body is in frame.
+function computeBodyMetrics(landmarks, width, height, heightCm, mirrored) {
+  if (!landmarks || !width || !height || !(heightCm >= 80 && heightCm <= 250)) return null;
+  const at = (index) => {
+    const raw = landmarks[index];
+    return raw && { x: (mirrored ? 1 - raw.x : raw.x) * width, y: raw.y * height, visibility: raw.visibility };
+  };
+  const [ls, rs, le, re, lw, rw, lh, rh, lk, rk, la, ra] = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28].map(at);
+  const shouldersIn = visible(ls) && visible(rs);
+  const hipsIn = visible(lh) && visible(rh);
+  if (!shouldersIn) return null;
+
+  const head = [0, 7, 8].map(at).filter((point) => visible(point, 0.35));
+  const feet = [31, 32, 27, 28].map(at).filter((point) => visible(point, 0.35));
+  const top = head.length ? Math.min(...head.map((point) => point.y)) : null;
+  const bottom = feet.length ? Math.max(...feet.map((point) => point.y)) : null;
+  const shoulderMid = mid(ls, rs);
+  const hipMid = hipsIn ? mid(lh, rh) : null;
+  const shoulderPx = dist(ls, rs);
+
+  let cmPerPx;
+  let mode;
+  if (top !== null && bottom !== null && bottom - top > height * 0.35) { cmPerPx = heightCm / (bottom - top); mode = 'full'; }
+  else if (hipMid && hipMid.y - shoulderMid.y > 12) { cmPerPx = (heightCm * TORSO_TO_HEIGHT) / (hipMid.y - shoulderMid.y); mode = 'torso'; }
+  else { cmPerPx = (heightCm * SHOULDERS_TO_HEIGHT) / shoulderPx; mode = 'shoulders'; }
+
+  const lines = [];
+  const cm = { height: heightCm };
+  const push = (key, label, points, valueCm, anchor) => { cm[key] = valueCm; lines.push({ key, label, points, valueCm, anchor }); };
+
+  push('shoulder', 'Shoulder', [ls, rs], shoulderPx * cmPerPx * RATIO.shoulder, { x: shoulderMid.x, y: shoulderMid.y - shoulderPx * 0.18 });
+
+  if (hipMid) {
+    const hipPx = dist(lh, rh);
+    const torsoLen = hipMid.y - shoulderMid.y;
+    const chestY = shoulderMid.y + torsoLen * 0.26;
+    const chestHalf = shoulderPx * 0.44;
+    const waistY = shoulderMid.y + torsoLen * 0.64;
+    const waistHalf = ((shoulderPx * 0.72 + hipPx * 0.78) / 2) / 2;
+    const centerX = (shoulderMid.x + hipMid.x) / 2;
+    push('chest', 'Chest', [{ x: centerX - chestHalf, y: chestY }, { x: centerX + chestHalf, y: chestY }], shoulderPx * cmPerPx * RATIO.chest, { x: centerX, y: chestY - 14 });
+    push('waist', 'Waist', [{ x: centerX - waistHalf, y: waistY }, { x: centerX + waistHalf, y: waistY }], ((shoulderPx * RATIO.waistFromShoulder + hipPx * RATIO.waistFromHip) / 2) * cmPerPx, { x: centerX, y: waistY - 14 });
+    push('hip', 'Hip', [lh, rh], hipPx * cmPerPx * RATIO.hip, { x: hipMid.x, y: hipMid.y + 18 });
+    const torsoX = Math.max(ls.x, rs.x) + shoulderPx * 0.28;
+    push('half_length', 'Torso', [{ x: torsoX, y: shoulderMid.y }, { x: torsoX, y: hipMid.y }], torsoLen * cmPerPx, { x: torsoX + 8, y: (shoulderMid.y + hipMid.y) / 2, align: 'start' });
+  }
+
+  const arm = [[ls, le, lw], [rs, re, rw]].find(([s, e, w]) => visible(s) && visible(e) && visible(w));
+  if (arm) {
+    const [s, e, w] = arm;
+    push('sleeve', 'Sleeve', [s, e, w], (dist(s, e) + dist(e, w)) * cmPerPx, { x: e.x, y: e.y, align: e.x < shoulderMid.x ? 'end' : 'start', dx: e.x < shoulderMid.x ? -10 : 10 });
+  }
+
+  const leg = [[lh, lk, la], [rh, rk, ra]].find(([h, k, a]) => visible(h) && visible(k) && visible(a));
+  if (leg && hipMid) {
+    const [h, k, a] = leg;
+    const legPx = dist(h, k) + dist(k, a);
+    push('outseam', 'Leg', [h, k, a], legPx * cmPerPx, { x: k.x, y: k.y, align: k.x < hipMid.x ? 'end' : 'start', dx: k.x < hipMid.x ? -10 : 10 });
+    cm.inseam = legPx * cmPerPx * 0.82;
+    cm.leg_length = legPx * cmPerPx;
+  }
+
+  if (mode === 'full') {
+    const heightX = Math.min(ls.x, rs.x) - shoulderPx * 0.55;
+    lines.push({ key: 'height', label: 'Height', points: [{ x: heightX, y: top }, { x: heightX, y: bottom }], valueCm: heightCm, anchor: { x: heightX - 8, y: (top + bottom) / 2, align: 'end' }, ticks: true });
+    cm.full_length = (bottom - shoulderMid.y) * cmPerPx;
+  }
+  cm.bust = cm.chest;
+  cm.chest_or_bust = cm.chest;
+  cm.shirt_length = cm.half_length;
+  cm.length = cm.half_length;
+  return { mode, lines, cm };
 }
 
-function midpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, visibility: Math.min(a.visibility ?? 1, b.visibility ?? 1) }; }
-
-// Shared geometry: figures out the pixel positions for the height/shoulder/waist/hip
-// lines and converts them to real-world centimeters using the person's stated height
-// as the calibration reference (a single camera can't recover absolute scale on its own).
-function computeBodyMetrics(points, width, height, knownHeightCm) {
-  const shoulderWidth = distance(points[11], points[12], width, height);
-  const hipWidth = distance(points[23], points[24], width, height);
-  const shoulders = midpoint(points[11], points[12]);
-  const hips = midpoint(points[23], points[24]);
-  const ankles = midpoint(points[27], points[28]);
-  const visibleHead = [points[0], points[7], points[8]].filter((p) => p && (p.visibility ?? 1) >= 0.35);
-  const visibleFeet = [points[31], points[32], points[27], points[28]].filter((p) => p && (p.visibility ?? 1) >= 0.35);
-  if (!shoulderWidth || !hipWidth || !visibleHead.length || !visibleFeet.length) return null;
-  const top = Math.min(...visibleHead.map((p) => p.y * height));
-  const bottom = Math.max(...visibleFeet.map((p) => p.y * height));
-  if (bottom <= top) return null;
-  const cmPerPixel = knownHeightCm / (bottom - top);
-  const waistWidthPx = (shoulderWidth * 0.72 + hipWidth * 0.78) / 2;
-  const shoulderY = shoulders.y * height;
-  const hipY = hips.y * height;
-  const waistY = shoulderY + (hipY - shoulderY) * 0.62;
-  return {
-    points, width, height, shoulders, hips, ankles, shoulderWidth, hipWidth, cmPerPixel,
-    pixels: {
-      top, bottom,
-      centerX: (shoulders.x * width + hips.x * width) / 2,
-      shoulderY, shoulderX1: points[11].x * width, shoulderX2: points[12].x * width,
-      hipY, hipX1: points[23].x * width, hipX2: points[24].x * width,
-      waistY, waistHalfWidth: Math.max(waistWidthPx, shoulderWidth * 0.5) / 2,
-    },
-    cm: {
-      height: knownHeightCm,
-      shoulder: shoulderWidth * cmPerPixel,
-      chest: shoulderWidth * cmPerPixel * 2.35,
-      waist: waistWidthPx * cmPerPixel * 2.25,
-      hip: hipWidth * cmPerPixel * 2.35,
-    },
-  };
+function formatLength(valueCm, unit) {
+  const value = unit === 'in' ? valueCm / 2.54 : valueCm;
+  return `${Math.round(value * 10) / 10}${unit === 'in' ? '″' : ' cm'}`;
 }
 
-function estimateMeasurements(metrics, fields, unit) {
-  const { points, width, height, shoulders, hips, ankles, cmPerPixel, cm: base } = metrics;
-  const cm = {
-    ...base,
-    sleeve: (distance(points[11], points[13], width, height) + distance(points[13], points[15], width, height) + distance(points[12], points[14], width, height) + distance(points[14], points[16], width, height)) * 0.5 * cmPerPixel,
-    half_length: distance(shoulders, hips, width, height) * cmPerPixel,
-    shirt_length: distance(shoulders, hips, width, height) * cmPerPixel,
-    full_length: base.height,
-    length: distance(shoulders, hips, width, height) * cmPerPixel,
-    inseam: Math.max(0, (ankles.y - hips.y) * height * cmPerPixel * 0.82),
-    outseam: Math.max(0, (ankles.y - hips.y) * height * cmPerPixel),
-    leg_length: Math.max(0, (ankles.y - hips.y) * height * cmPerPixel),
-    bust: base.chest,
-    chest_or_bust: base.chest,
-  };
+function MeasureOverlay({ metrics, landmarks, width, height, unit, mirrored }) {
+  if (!width || !height) return null;
+  const font = Math.max(width, height) * 0.021;
+  const approx = metrics && metrics.mode !== 'full';
+  const point = (index) => landmarks && { x: (mirrored ? 1 - landmarks[index].x : landmarks[index].x) * width, y: landmarks[index].y * height };
+  return (
+    <svg className="measure-overlay" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      {landmarks && LINKS.map(([from, to]) => (visible(landmarks[from]) && visible(landmarks[to]) ? (
+        <line key={`${from}-${to}`} className="measure-bone" x1={point(from).x} y1={point(from).y} x2={point(to).x} y2={point(to).y} />
+      ) : null))}
+      {metrics?.lines.map((line) => {
+        const text = `${line.label} ${approx && line.key !== 'height' ? '≈ ' : ''}${formatLength(line.valueCm, unit)}`;
+        const padX = font * 0.55;
+        const boxW = text.length * font * 0.56 + padX * 2;
+        const boxH = font * 1.7;
+        const align = line.anchor.align || 'middle';
+        const x = line.anchor.x + (line.anchor.dx || 0);
+        const boxX = align === 'start' ? x : align === 'end' ? x - boxW : x - boxW / 2;
+        const clampedX = Math.min(Math.max(boxX, 4), width - boxW - 4);
+        return (
+          <g key={line.key} className="measure-line-group">
+            <polyline className="measure-line" points={line.points.map((p) => `${p.x},${p.y}`).join(' ')} />
+            {line.points.map((p, index) => <circle key={index} className="measure-node" cx={p.x} cy={p.y} r={font * 0.28} />)}
+            {line.ticks && line.points.map((p, index) => <line key={`t${index}`} className="measure-line" x1={p.x - font * 0.6} y1={p.y} x2={p.x + font * 0.6} y2={p.y} />)}
+            <rect className="measure-label-box" x={clampedX} y={line.anchor.y - boxH / 2} width={boxW} height={boxH} rx={boxH / 2} />
+            <text className="measure-label" x={clampedX + boxW / 2} y={line.anchor.y} fontSize={font} textAnchor="middle" dominantBaseline="central">{text}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function estimate(metrics, fields, unit) {
   const factor = unit === 'in' ? 1 / 2.54 : 1;
-  return Object.fromEntries(fields.map(([key]) => [key, cm[key] ? String(Math.round(cm[key] * factor * 10) / 10) : '']));
+  return Object.fromEntries(fields.map(([key]) => [key, metrics?.cm[key] ? String(Math.round(metrics.cm[key] * factor * 10) / 10) : '']));
 }
+
+const GUIDANCE = {
+  none: 'Step into the frame and face the camera.',
+  shoulders: 'Great — step back until your hips are in view for chest, waist and hip lines.',
+  torso: 'Nearly there — step back until your feet are visible to lock the height calibration.',
+  full: 'Full body found — hold still with arms relaxed to auto-capture, or press Capture.',
+};
 
 export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
   const videoRef = useRef(null);
   const fileRef = useRef(null);
   const streamRef = useRef(null);
   const frameRef = useRef(0);
-  const gestureStartRef = useRef(0);
-  const gestureCaptureRef = useRef(true);
+  const holdStartRef = useRef(0);
+  const autoCaptureRef = useRef(true);
   const captureRef = useRef(null);
-  const imageUrlRef = useRef('');
+  const photoUrlRef = useRef('');
   const [source, setSource] = useState('');
-  const [photo, setPhoto] = useState(null);
-  const [cameraSnapshot, setCameraSnapshot] = useState('');
+  const [photo, setPhoto] = useState('');
+  const [snapshot, setSnapshot] = useState('');
   const [landmarks, setLandmarks] = useState(null);
-  const [knownHeight, setKnownHeight] = useState('170');
+  const [dims, setDims] = useState({ width: 0, height: 0 });
+  const [heightCm, setHeightCm] = useState('170');
   const [cameraReady, setCameraReady] = useState(false);
-  const [gestureCapture, setGestureCapture] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [status, setStatus] = useState('Enter your height, then choose a camera or full-body photo.');
   const [modelLoading, setModelLoading] = useState(false);
+  const [autoCapture, setAutoCapture] = useState(true);
+  const [holding, setHolding] = useState(false);
   const [review, setReview] = useState(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [error, setError] = useState('');
 
-  // Recomputes live every time the pose, frame size, or the height calibration input
-  // changes — this is what drives the green measuring lines and their labels.
-  const liveMetrics = useMemo(() => {
-    if (!landmarks || !dimensions.width) return null;
-    const heightCm = Number(knownHeight);
-    if (!Number.isFinite(heightCm) || heightCm < 80 || heightCm > 250) return null;
-    return computeBodyMetrics(landmarks, dimensions.width, dimensions.height, heightCm);
-  }, [landmarks, dimensions, knownHeight]);
+  const mirrored = source === 'camera';
+  const metrics = useMemo(() => computeBodyMetrics(landmarks, dims.width, dims.height, Number(heightCm), mirrored), [landmarks, dims, heightCm, mirrored]);
+  const live = useMemo(() => estimate(metrics, fields, unit), [metrics, fields, unit]);
 
   const releaseCamera = useCallback(() => {
     cancelAnimationFrame(frameRef.current);
@@ -190,58 +201,51 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
     setCameraReady(false);
   }, []);
 
-  const cleanup = useCallback(() => {
+  useEffect(() => () => {
     releaseCamera();
-    if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
   }, [releaseCamera]);
 
-  useEffect(() => cleanup, [cleanup]);
-
-  const analyze = useCallback((points, width, height) => {
-    setLandmarks(points);
-    setDimensions({ width, height });
-    setError('');
-    setStatus('Pose found — check the green measurement lines, then capture for review.');
-  }, []);
+  const reset = () => {
+    releaseCamera();
+    setSource(''); setPhoto(''); setSnapshot(''); setLandmarks(null); setReview(null); setError(''); setHolding(false);
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    photoUrlRef.current = '';
+  };
 
   const startCamera = async () => {
-    setError(''); setReview(null); setPhoto(null); setSource('camera');
-    setStatus('Starting your camera…');
+    reset();
+    setSource('camera');
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access needs a secure connection (HTTPS or localhost).');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', aspectRatio: { ideal: 0.5625 }, width: { ideal: 720 }, height: { ideal: 1280 } } });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } });
       streamRef.current = stream;
       const video = videoRef.current;
       video.srcObject = stream;
       await video.play();
       setModelLoading(true);
-      setStatus('Loading the pose model (first time may take a few seconds)…');
       const task = await getLandmarker('VIDEO');
       setModelLoading(false);
       setCameraReady(true);
-      setStatus('Stand facing the camera with your full body visible. Hold your arms close to your sides for automatic capture, or capture manually.');
-      let lastFrame = 0;
+      let last = 0;
       const detect = (time) => {
         if (!streamRef.current) return;
-        if (time - lastFrame > 180 && video.readyState >= 2) {
-          lastFrame = time;
+        if (time - last > 120 && video.readyState >= 2) {
+          last = time;
           try {
-            const result = task.detectForVideo(video, time);
-            const points = result.landmarks?.[0];
-            if (points?.length) {
-              analyze(points, video.videoWidth, video.videoHeight);
-              const center = (points[11].x + points[12].x) / 2;
-              const shoulderSpan = Math.abs(points[11].x - points[12].x);
-              const leftWrist = points[15], rightWrist = points[16];
-              const armsRelaxed = leftWrist && rightWrist && (leftWrist.visibility ?? 1) > 0.55 && (rightWrist.visibility ?? 1) > 0.55 &&
-                leftWrist.y > points[11].y && rightWrist.y > points[12].y &&
-                Math.abs(leftWrist.x - center) < shoulderSpan * 1.15 && Math.abs(rightWrist.x - center) < shoulderSpan * 1.15;
-              if (gestureCaptureRef.current && armsRelaxed) {
-                if (!gestureStartRef.current) gestureStartRef.current = time;
-                if (time - gestureStartRef.current > 1400) { gestureStartRef.current = 0; captureRef.current?.(); }
-              } else gestureStartRef.current = 0;
-            } else gestureStartRef.current = 0;
-          } catch { /* Keep the preview responsive while a frame is unavailable. */ }
+            const points = task.detectForVideo(video, time).landmarks?.[0];
+            setDims({ width: video.videoWidth, height: video.videoHeight });
+            setLandmarks(points?.length ? points : null);
+            const relaxed = points?.length && [15, 16, 11, 12].every((index) => visible(points[index], 0.55))
+              && points[15].y > points[11].y && points[16].y > points[12].y
+              && Math.abs(points[15].x - points[16].x) < Math.abs(points[11].x - points[12].x) * 2.3;
+            const full = points?.length && [0, 27, 28].every((index) => visible(points[index], 0.4));
+            if (autoCaptureRef.current && relaxed && full) {
+              if (!holdStartRef.current) holdStartRef.current = time;
+              setHolding(true);
+              if (time - holdStartRef.current > 1600) { holdStartRef.current = 0; setHolding(false); captureRef.current?.(); }
+            } else { holdStartRef.current = 0; setHolding(false); }
+          } catch { /* a dropped frame shouldn't stop the preview */ }
         }
         frameRef.current = requestAnimationFrame(detect);
       };
@@ -249,103 +253,126 @@ export default function MeasurementCapture({ fields, unit, onClose, onApply }) {
     } catch (cause) {
       releaseCamera();
       setModelLoading(false);
-      setError(cause.name === 'NotAllowedError' ? 'Allow camera access in your browser, or upload a photo instead.' : cause.message || 'Could not start the camera. Check your internet connection — the pose model loads from a CDN the first time.');
       setSource('');
+      setError(cause.name === 'NotAllowedError' ? 'Allow camera access in your browser, or upload a full-body photo instead.' : cause.message || 'Couldn’t start the camera. The pose model loads from a CDN the first time — check your connection.');
     }
   };
 
-  const uploadPhoto = async (event) => {
-    const file = event.target.files?.[0]; event.target.value = '';
+  const uploadPhoto = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) { setError('Choose an image file.'); return; }
-    if (file.size > 12 * 1024 * 1024) { setError('Choose an image smaller than 12 MB.'); return; }
-    releaseCamera(); setError(''); setReview(null); setBusy(true); setSource('photo');
-    setStatus('Analyzing your photo…');
-    if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
-    const url = URL.createObjectURL(file); imageUrlRef.current = url;
+    reset();
+    setSource('photo');
+    const url = URL.createObjectURL(file);
+    photoUrlRef.current = url;
     const image = new Image();
     image.onload = async () => {
       try {
         setModelLoading(true);
         const task = await getLandmarker('IMAGE');
-        setModelLoading(false);
         const points = task.detect(image).landmarks?.[0];
-        if (!points?.length) throw new Error('No full-body pose found. Try a clear front-facing photo with your whole body visible.');
-        setPhoto(url); analyze(points, image.naturalWidth, image.naturalHeight);
-      } catch (cause) { setModelLoading(false); setError(cause.message || 'Could not analyze this photo.'); }
-      finally { setBusy(false); }
+        if (!points?.length) throw new Error('No body found. Try a clear, front-facing photo with your whole body in frame.');
+        setPhoto(url);
+        setDims({ width: image.naturalWidth, height: image.naturalHeight });
+        setLandmarks(points);
+      } catch (cause) { setError(cause.message || 'Couldn’t analyse this photo.'); }
+      finally { setModelLoading(false); }
     };
-    image.onerror = () => { setBusy(false); setError('Could not open that photo.'); };
+    image.onerror = () => setError('Couldn’t open that photo.');
     image.src = url;
   };
 
   const capture = () => {
-    if (!landmarks || !dimensions.width) return setError('Wait for the pose guide to detect your full body.');
-    const heightCm = Number(knownHeight);
-    if (!Number.isFinite(heightCm) || heightCm < 80 || heightCm > 250) return setError('Enter your height between 80 and 250 cm to calibrate the estimates.');
-    if (!liveMetrics) return setError('Keep your shoulders, hips, head, and ankles visible in the frame.');
-    try {
-      const estimates = estimateMeasurements(liveMetrics, fields, unit);
-      if (source === 'camera' && videoRef.current?.videoWidth) {
-        const canvas = document.createElement('canvas');
-        canvas.width = videoRef.current.videoWidth; canvas.height = videoRef.current.videoHeight;
-        canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
-        setCameraSnapshot(canvas.toDataURL('image/jpeg', 0.82));
-      }
-      setReview(estimates); releaseCamera();
-      setStatus('Review these visual estimates and edit any value before using them.');
-    } catch (cause) { setError(cause.message); }
+    if (!metrics) { setError('Keep at least your shoulders in the frame so we can measure.'); return; }
+    if (source === 'camera' && videoRef.current?.videoWidth) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
+      context.drawImage(video, 0, 0);
+      setSnapshot(canvas.toDataURL('image/jpeg', 0.85));
+    }
+    setReview(estimate(metrics, fields, unit));
+    releaseCamera();
   };
   captureRef.current = capture;
 
-  const points = useMemo(() => landmarks?.map((point) => `${point.x},${point.y}`).join(' '), [landmarks]);
+  const stageImage = source === 'photo' ? photo : snapshot;
+  const readings = review || live;
 
-  const clearCapture = () => {
-    releaseCamera(); setSource(''); setPhoto(null); setCameraSnapshot(''); setLandmarks(null); setReview(null); setError('');
-    if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
-    imageUrlRef.current = '';
-  };
+  return (
+    <Modal onClose={onClose} size="xl" labelledBy="measure-title" className="measure-modal">
+      <div className="measure-grid">
+        <div className={`measure-stage ${mirrored && !review ? 'is-mirrored' : ''}`}>
+          {source === 'camera' && !review && <video ref={videoRef} muted playsInline />}
+          {(review || source === 'photo') && stageImage && <img src={stageImage} alt="Your measurement capture" />}
+          {source && <MeasureOverlay metrics={metrics} landmarks={landmarks} width={dims.width} height={dims.height} unit={unit} mirrored={mirrored} />}
+          {!source && (
+            <div className="measure-stage-empty">
+              <ScanLine />
+              <strong>Measure with your camera</strong>
+              <p>Green lines will mark your shoulder, chest, waist, hips, arms and legs right on the video.</p>
+            </div>
+          )}
+          {modelLoading && <div className="measure-stage-wait"><Spinner size="lg" /> Loading the pose model…</div>}
+          {cameraReady && !review && <span className={`measure-live glass-capsule ${holding ? 'is-holding' : ''}`}><i /> {holding ? 'Hold still…' : 'Live'}</span>}
+          {metrics && metrics.mode !== 'full' && !review && <span className="measure-approx glass-capsule">≈ Estimated until your full body is in frame</span>}
+        </div>
 
-  return <div className="measurement-capture-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="measurement-capture-dialog" role="dialog" aria-modal="true" aria-labelledby="measurement-capture-title">
-      <header><div><span className="dori-kicker">CV measurement guide</span><h2 id="measurement-capture-title">Measure with your camera</h2><p>Pose detection runs in your browser. Photos stay on this device.</p></div><button type="button" onClick={onClose} aria-label="Close measurement guide"><X /></button></header>
-      <div className="measurement-capture-body">
-        {!review && <>
-          <label className="measurement-height-input">Your height (cm)<input type="number" min="80" max="250" step="0.5" value={knownHeight} onChange={(event) => setKnownHeight(event.target.value)} /></label>
-          <p className="measurement-capture-status" role="status">{(busy || modelLoading) && <LoaderCircle className="w-4 h-4 animate-spin" />}{status}</p>
-          {(source === 'camera' || source === 'photo') && <div className={`measurement-pose-stage ${source === 'camera' ? 'measurement-live-stage' : ''}`}>
-            {source === 'camera' && <video ref={videoRef} autoPlay muted playsInline />}
-            {source === 'photo' && photo && <img src={photo} alt="Uploaded pose preview" />}
-            <PoseOverlay landmarks={landmarks} width={dimensions.width} height={dimensions.height} />
-            <MeasurementOverlay metrics={liveMetrics} width={dimensions.width} height={dimensions.height} unit={unit} />
-            {modelLoading && <div className="measurement-model-loading"><LoaderCircle className="w-6 h-6 animate-spin" /><span>Loading pose model…</span></div>}
-            {source === 'camera' && cameraReady && <span className="measurement-live-badge"><i /> LIVE CAMERA</span>}
-            {landmarks && !liveMetrics && <span className="measurement-height-overlay">Move back until your head, shoulders, hips & ankles are all visible</span>}
-          </div>}
-          <div className="measurement-capture-actions">
-            {!cameraReady && <button type="button" className="dori-primary-button" onClick={startCamera}><Camera size={17} /> Open camera</button>}
-            <button type="button" className="measurement-secondary-button" onClick={() => fileRef.current?.click()}><ImagePlus size={17} /> Upload a full-body photo</button>
-            <input ref={fileRef} type="file" accept="image/*" capture="user" onChange={uploadPhoto} hidden />
-            {cameraReady && <label className="measurement-gesture-toggle"><input type="checkbox" checked={gestureCapture} onChange={(event) => { gestureCaptureRef.current = event.target.checked; setGestureCapture(event.target.checked); gestureStartRef.current = 0; }} /> Auto-capture when arms are close</label>}
-            {cameraReady && <button type="button" className="dori-primary-button" onClick={capture}><ScanLine size={17} /> Capture & review</button>}
-            {source === 'photo' && landmarks && <button type="button" className="dori-primary-button" onClick={capture}><ScanLine size={17} /> Review measurements</button>}
-            {source && <button type="button" className="measurement-secondary-button" onClick={clearCapture}><RotateCcw size={16} /> Retake</button>}
+        <aside className="measure-panel">
+          <div className="measure-panel-head">
+            <span className="kicker live">Camera measurements</span>
+            <h2 id="measure-title" className="display title-md">{review ? 'Check your numbers' : 'Stand back & face the camera'}</h2>
+            <p className="muted tiny">Pose detection runs in your browser — your video never leaves this device.</p>
           </div>
-        </>}
-        {review && <>
-          <div className="measurement-pose-stage measurement-review-image">
-            <img src={source === 'camera' ? cameraSnapshot : photo} alt="Captured pose preview with detected body landmarks" />
-            <PoseOverlay landmarks={landmarks} width={dimensions.width} height={dimensions.height} />
-            <MeasurementOverlay metrics={liveMetrics} width={dimensions.width} height={dimensions.height} unit={unit} />
-            <span className="measurement-height-overlay">Height calibration · {knownHeight} cm</span>
+
+          {!review && <>
+            <label className="field">
+              <span className="field-label">Your height <em className="muted">calibrates every line</em></span>
+              <span className="measure-input"><input className="input" type="number" min="80" max="250" step="0.5" value={heightCm} onChange={(event) => setHeightCm(event.target.value)} /><i>cm</i></span>
+            </label>
+            <p className="notice tone-info measure-guide">{GUIDANCE[source ? (metrics?.mode || 'none') : 'none']}</p>
+          </>}
+
+          <div className="measure-readings">
+            {fields.map(([key, label]) => (
+              <label key={key} className={`measure-reading ${readings[key] ? 'is-on' : ''}`}>
+                <span>{label}</span>
+                {review
+                  ? <span className="measure-input"><input className="input" type="number" step="0.1" min="1" value={review[key] ?? ''} onChange={(event) => setReview((current) => ({ ...current, [key]: event.target.value }))} /><i>{unit}</i></span>
+                  : <strong>{readings[key] ? `${readings[key]} ${unit}` : '—'}</strong>}
+              </label>
+            ))}
           </div>
-          <div className="measurement-review-note"><ScanLine size={18} /><span>Visual estimates · {unit === 'in' ? 'inches' : 'centimeters'}. Circumferences are rough front-view estimates. Please edit them to match your tape measurements.</span></div>
-          <div className="measurement-review-grid">{fields.map(([key, label]) => <label key={key}>{label} ({unit})<input type="number" min="1" max="500" step="0.1" value={review[key] ?? ''} onChange={(event) => setReview((current) => ({ ...current, [key]: event.target.value }))} /></label>)}</div>
-          <div className="measurement-capture-actions"><button type="button" className="measurement-secondary-button" onClick={() => setReview(null)}>Back to camera</button><button type="button" className="dori-primary-button" onClick={() => onApply(review)}>Use measurements</button></div>
-        </>}
-        {error && <p className="shop-error" role="alert">{error}</p>}
-        <p className="measurement-privacy-note">For best results: face the camera, use even lighting, wear fitted clothing, and keep your head, shoulders, hips, and ankles in frame. Estimates are a starting point, not tailor-grade measurements.</p>
+
+          {error && <p className="notice tone-bad" role="alert">{error}</p>}
+
+          <div className="measure-actions">
+            {review ? <>
+              <button type="button" className="btn btn-ghost" onClick={() => { setReview(null); setSnapshot(''); if (source === 'camera') startCamera(); }}><RotateCcw /> Retake</button>
+              <button type="button" className="btn btn-solid" onClick={() => onApply(review)}><Check /> Use these</button>
+            </> : <>
+              {!cameraReady && <button type="button" className="btn btn-solid" onClick={startCamera} disabled={modelLoading}><Camera /> {source === 'camera' ? 'Starting…' : 'Open camera'}</button>}
+              {cameraReady && <button type="button" className="btn btn-solid" onClick={capture} disabled={!metrics}><ScanLine /> Capture</button>}
+              {source === 'photo' && landmarks && <button type="button" className="btn btn-solid" onClick={capture}><ScanLine /> Review</button>}
+              <button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()}><ImagePlus /> Upload photo</button>
+              {cameraReady && (
+                <label className="measure-auto">
+                  <input type="checkbox" checked={autoCapture} onChange={(event) => { autoCaptureRef.current = event.target.checked; setAutoCapture(event.target.checked); holdStartRef.current = 0; }} />
+                  Auto-capture when I hold still
+                </label>
+              )}
+            </>}
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={uploadPhoto} />
+          </div>
+          <p className="measure-note">Circumferences are front-view estimates — a starting point for your tailor, who’ll confirm them with you.</p>
+        </aside>
       </div>
-    </section>
-  </div>;
+    </Modal>
+  );
 }
