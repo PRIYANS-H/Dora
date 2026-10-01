@@ -694,6 +694,7 @@ Crafted with ❤️ for the future of custom bespoke fashion.
 
 - **Priyansh Chaudhary** — Fullstack Architecture, AI Integrations & Computer Vision
 - **Kashish** — UI/UX Design System, Frontend Polish & Workflows
+- **Priya Sinder** — Researcher (Fashion Tech, Domain Analysis & User Studies)
 
 ---
 
